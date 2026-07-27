@@ -24,7 +24,7 @@ function players(n: number): Player[] {
 function pairsInRound(matches: Match[], round: number): string[] {
   return matches
     .filter((m) => m.round === round)
-    .map((m) => matchKey(m.aId, m.bId))
+    .map((m) => matchKey(m.aId!, m.bId!))
     .sort()
 }
 
@@ -50,7 +50,7 @@ describe('圓周法排程', () => {
 
   it.each(SIZES)('%i 人：每對人啱啱撞一次，一次都唔少一次都唔多', (n) => {
     const s = generateSchedule(players(n))
-    const seen = s.map((m) => matchKey(m.aId, m.bId))
+    const seen = s.map((m) => matchKey(m.aId!, m.bId!))
     expect(new Set(seen).size).toBe(seen.length) // 冇重複
 
     const expected: string[] = []
@@ -171,10 +171,10 @@ describe('中途加人', () => {
   function halfPlayed(): Match[] {
     const s = baseSchedule.map((m) => ({ ...m, rounds: [...m.rounds] }))
     s[0]!.rounds = [
-      { winnerId: s[0]!.aId, finish: 'burst' },
-      { winnerId: s[0]!.aId, finish: 'over' },
+      { winnerId: s[0]!.aId!, finish: 'burst' },
+      { winnerId: s[0]!.aId!, finish: 'over' },
     ]
-    s[1]!.rounds = [{ winnerId: s[1]!.bId, finish: 'xtreme' }]
+    s[1]!.rounds = [{ winnerId: s[1]!.bId!, finish: 'xtreme' }]
     return s
   }
 

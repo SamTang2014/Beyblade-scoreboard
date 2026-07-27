@@ -1,4 +1,11 @@
-import type { FinishType, Match, Player, RoundResult, Tournament } from '../engine/types'
+import type {
+  FinishType,
+  Match,
+  Player,
+  RoundResult,
+  Tournament,
+  TournamentMode,
+} from '../engine/types'
 
 /**
  * 賽事全部存喺瀏覽器嘅 localStorage。冇後端，所以呢度就係唯一一份資料。
@@ -128,6 +135,8 @@ export function createStore({ kv, now = Date.now, newId = defaultNewId }: StoreO
         name: name.trim() || '未命名賽事',
         createdAt: stamp,
         updatedAt: stamp,
+        mode: 'roundRobin',
+        cutSize: null,
         players: [],
         matches: [],
       }
@@ -228,11 +237,10 @@ export function parseTournament(v: unknown): Tournament {
 
   const matches: Match[] = arr(v.matches, '賽程').map((m, i) => {
     if (!isObject(m)) throw new ImportError(`第 ${i + 1} 場唔係一個物件。`)
-    const aId = str(m.aId, `第 ${i + 1} 場嘅藍邊選手`)
-    const bId = str(m.bId, `第 ${i + 1} 場嘅紅邊選手`)
-    if (!known.has(aId) || !known.has(bId)) {
-      throw new ImportError(`第 ${i + 1} 場入面有選手唔喺名單度。`)
-    }
+
+    // 淘汰階段開賽時對手可以未定，所以 null 係合法值。
+    const aId = playerRef(m.aId, known, `第 ${i + 1} 場嘅藍邊選手`)
+    const bId = playerRef(m.bId, known, `第 ${i + 1} 場嘅紅邊選手`)
 
     const rounds: RoundResult[] = arr(m.rounds, `第 ${i + 1} 場嘅 round`).map((r, j) => {
       if (!isObject(r)) throw new ImportError(`第 ${i + 1} 場第 ${j + 1} round 唔係一個物件。`)
@@ -249,22 +257,59 @@ export function parseTournament(v: unknown): Tournament {
 
     return {
       id: str(m.id, `第 ${i + 1} 場嘅 id`),
+      // 舊檔案冇 stage，一律當循環賽。
+      stage: m.stage === 'bracket' ? 'bracket' : 'group',
       round: num(m.round, `第 ${i + 1} 場嘅輪次`),
       order: num(m.order, `第 ${i + 1} 場嘅次序`),
       aId,
       bId,
+      aFrom: optionalStr(m.aFrom),
+      bFrom: optionalStr(m.bFrom),
       rounds,
     }
   })
+
+  // 場次之間嘅指針要指到真嘢，唔係之後 propagate 會靜靜哋填唔到人。
+  const matchIds = new Set(matches.map((m) => m.id))
+  for (const [i, m] of matches.entries()) {
+    for (const from of [m.aFrom, m.bFrom]) {
+      if (from !== null && !matchIds.has(from)) {
+        throw new ImportError(`第 ${i + 1} 場等緊一場唔存在嘅對戰（${from}）。`)
+      }
+    }
+  }
 
   return {
     id: str(v.id, '賽事 id'),
     name: text(v.name, '賽事名'),
     createdAt: num(v.createdAt, '建立時間'),
     updatedAt: num(v.updatedAt, '更新時間'),
+    // 舊檔案冇 mode，一律當單循環 —— 之前存嘅賽事唔會爛。
+    mode: parseMode(v.mode),
+    cutSize: typeof v.cutSize === 'number' && Number.isFinite(v.cutSize) ? v.cutSize : null,
     players,
     matches,
   }
+}
+
+const MODES: TournamentMode[] = ['roundRobin', 'knockout', 'groupThenKnockout']
+
+function parseMode(v: unknown): TournamentMode {
+  if (v === undefined || v === null) return 'roundRobin'
+  if (typeof v === 'string' && MODES.includes(v as TournamentMode)) return v as TournamentMode
+  throw new ImportError(`賽制「${String(v)}」唔認得。`)
+}
+
+function optionalStr(v: unknown): string | null {
+  return typeof v === 'string' && v !== '' ? v : null
+}
+
+/** 選手 id，或者 null（淘汰賽對手未定）。填咗就一定要喺名單度。 */
+function playerRef(v: unknown, known: Set<string>, where: string): string | null {
+  if (v === undefined || v === null) return null
+  const id = str(v, where)
+  if (!known.has(id)) throw new ImportError(`${where}唔喺名單度。`)
+  return id
 }
 
 export function parseExportFile(text: string): ExportFile {

@@ -44,9 +44,15 @@ export interface MatchScore {
  * 一到 4 分就唔再數落去 —— 就算資料入面多咗 round（例如手動改過嘅檔案），
  * 都唔會出現兩邊同時夠 4 分呢種贏家不明嘅狀態。
  */
+/** 兩邊都知道係邊個先打得。淘汰賽等緊上游嘅場次就未夠。 */
+export function isReady(match: Match): boolean {
+  return match.aId !== null && match.bId !== null
+}
+
 export function matchScore(match: Match): MatchScore {
   let a = 0
   let b = 0
+  if (!isReady(match)) return { a, b }
   for (const r of match.rounds) {
     if (a >= MATCH_TARGET || b >= MATCH_TARGET) break
     const pts = FINISH_POINTS[r.finish]
@@ -65,6 +71,7 @@ export function matchWinnerId(match: Match): string | null {
 }
 
 export function matchStatus(match: Match): MatchStatus {
+  if (!isReady(match)) return 'waiting'
   if (matchWinnerId(match) !== null) return 'done'
   return match.rounds.length > 0 ? 'live' : 'pending'
 }

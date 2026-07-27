@@ -110,10 +110,14 @@ export function generateSchedule(players: Player[]): Match[] {
       const [a, b] = blueFirst(home, away, index, list.length)
       matches.push({
         id: matchKey(a.id, b.id),
+        stage: 'group',
         round: r + 1,
         order: order++,
         aId: a.id,
         bId: b.id,
+        // 循環賽開賽嗰刻已經知道晒邊個打邊個，冇「等緊上游」呢回事。
+        aFrom: null,
+        bFrom: null,
         rounds: [],
       })
     }
@@ -131,12 +135,16 @@ export function generateSchedule(players: Player[]): Match[] {
  */
 export function mergeSchedule(existing: Match[], players: Player[]): Match[] {
   const known = new Set(players.map((p) => p.id))
+  // 淘汰階段唔關循環賽事，原封不動擺返出去。
+  const bracket = existing.filter((m) => m.stage === 'bracket')
   // 有選手俾人刪咗嘅話，佢嘅場次一齊消失。
-  const kept = existing.filter((m) => known.has(m.aId) && known.has(m.bId))
+  const kept = groupMatches(existing).filter(
+    (m) => m.aId !== null && m.bId !== null && known.has(m.aId) && known.has(m.bId),
+  )
   const keptIds = new Set(kept.map((m) => m.id))
 
   const pool = generateSchedule(players).filter((m) => !keptIds.has(m.id))
-  if (pool.length === 0) return kept
+  if (pool.length === 0) return [...kept, ...bracket]
 
   let round = kept.reduce((mx, m) => Math.max(mx, m.round), 0)
   const appended: Match[] = []
@@ -147,6 +155,11 @@ export function mergeSchedule(existing: Match[], players: Player[]): Match[] {
     let order = 1
     for (let i = 0; i < pool.length; ) {
       const m = pool[i]!
+      // generateSchedule 出嚟嘅循環賽場次兩邊一定有人，呢個 narrowing 純粹餵 TS。
+      if (m.aId === null || m.bId === null) {
+        i += 1
+        continue
+      }
       if (busy.has(m.aId) || busy.has(m.bId)) {
         i += 1
         continue
@@ -159,7 +172,7 @@ export function mergeSchedule(existing: Match[], players: Player[]): Match[] {
   }
 
   // 舊場次一律唔郁，連藍紅邊都唔換。
-  return [...kept, ...appended]
+  return [...kept, ...appended, ...bracket]
 }
 
 /**
@@ -169,19 +182,35 @@ export function mergeSchedule(existing: Match[], players: Player[]): Match[] {
  * 呢個時候轉盤同賽程會對唔上，所以介面要收起個轉盤，唔好講大話。
  */
 export function isPureCircleSchedule(matches: Match[], players: Player[]): boolean {
+  const group = groupMatches(matches)
   const ideal = generateSchedule(players)
-  if (ideal.length !== matches.length) return false
+  if (ideal.length !== group.length) return false
   const slots = new Set(ideal.map((m) => `${m.round}:${m.id}`))
-  return matches.every((m) => slots.has(`${m.round}:${m.id}`))
+  return group.every((m) => slots.has(`${m.round}:${m.id}`))
+}
+
+/**
+ * 淨係循環階段嘅場次。
+ *
+ * 「循環 + 淘汰」模式入面兩個階段各自由第 1 輪數起，所以輪次號碼會撞。
+ * 凡係按輪次做嘢嘅 function 都要先隔開兩個階段，唔係八強會當咗做第 1 輪。
+ */
+export function groupMatches(matches: Match[]): Match[] {
+  return matches.filter((m) => m.stage === 'group')
+}
+
+/** 淨係淘汰階段嘅場次。 */
+export function bracketMatches(matches: Match[]): Match[] {
+  return matches.filter((m) => m.stage === 'bracket')
 }
 
 /** 邊個喺呢輪冇得打。 */
 export function byesInRound(matches: Match[], players: Player[], round: number): Player[] {
   const playing = new Set<string>()
-  for (const m of matches) {
+  for (const m of groupMatches(matches)) {
     if (m.round !== round) continue
-    playing.add(m.aId)
-    playing.add(m.bId)
+    if (m.aId !== null) playing.add(m.aId)
+    if (m.bId !== null) playing.add(m.bId)
   }
   return seated(players).filter((p) => !playing.has(p.id))
 }

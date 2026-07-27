@@ -14,34 +14,51 @@ export interface RoundResult {
   finish: FinishType
 }
 
+/** 循環階段定淘汰階段。純循環全部係 group，純淘汰全部係 bracket。 */
+export type MatchStage = 'group' | 'bracket'
+
 export interface Match {
   /**
-   * 由對戰雙方 id 排序後組成，例如 `p1__p2`。
-   * 單循環入面每對人只會撞一次，所以呢個 key 天然唯一，
-   * 而且中途加人重排賽程時，舊場次嘅 id 唔會變 —— 已入嘅分唔會走失。
+   * 循環階段：由對戰雙方 id 排序後組成，例如 `p1__p2`。
+   * 每對人只會撞一次，所以呢個 key 天然唯一，中途加人重排賽程時
+   * 舊場次嘅 id 唔會變 —— 已入嘅分唔會走失。
+   *
+   * 淘汰階段：`b<輪>m<場>`，例如 `b2m1`。因為淘汰賽開賽時根本未知邊個打邊個，
+   * 冇得用對戰雙方做 key。兩種 id 唔會撞，pair key 一定含 `__`。
    */
   id: string
-  /** 第幾輪，1 起計。 */
+  stage: MatchStage
+  /** 第幾輪，1 起計。淘汰階段由淘汰賽第一輪重新數起。 */
   round: number
   /** 該輪入面第幾場，1 起計。 */
   order: number
-  /** 藍邊選手 id。 */
-  aId: string
-  /** 紅邊選手 id。 */
-  bId: string
+  /** 藍邊選手 id。null = 對手未定，等緊上游場次出結果。 */
+  aId: string | null
+  /** 紅邊選手 id。null = 對手未定。 */
+  bId: string | null
+  /** 藍邊等緊邊場嘅贏家。單循環一律 null。 */
+  aFrom: string | null
+  /** 紅邊等緊邊場嘅贏家。 */
+  bFrom: string | null
   rounds: RoundResult[]
 }
+
+export type TournamentMode = 'roundRobin' | 'knockout' | 'groupThenKnockout'
 
 export interface Tournament {
   id: string
   name: string
   createdAt: number
   updatedAt: number
+  mode: TournamentMode
+  /** groupThenKnockout 專用：幾多人入籤表。其他模式係 null。 */
+  cutSize: number | null
   players: Player[]
   matches: Match[]
 }
 
-export type MatchStatus = 'pending' | 'live' | 'done'
+/** waiting = 兩邊仲有一邊未知係邊個，打唔到住。 */
+export type MatchStatus = 'waiting' | 'pending' | 'live' | 'done'
 
 export interface StandingRow {
   playerId: string

@@ -48,8 +48,9 @@ function ConsoleBody({
   const order = inPlayOrder(tournament.matches)
   const firstOpen = order.find((m) => matchWinnerId(m) === null) ?? null
   const match = order.find((m) => m.id === focusId) ?? firstOpen ?? order[order.length - 1]!
-  const nameOf = (pid: string) =>
-    tournament.players.find((p) => p.id === pid)?.name ?? '（唔見咗嘅選手）'
+  // 淘汰賽嘅對手可以未定 —— 等緊上游場次出結果。
+  const nameOf = (pid: string | null) =>
+    pid === null ? '等緊上場' : (tournament.players.find((p) => p.id === pid)?.name ?? '（唔見咗嘅選手）')
 
   const score = matchScore(match)
   const winnerId = matchWinnerId(match)
@@ -213,7 +214,7 @@ function Side({
   name: string
   score: number
   rounds: Match['rounds']
-  playerId: string
+  playerId: string | null
   locked: boolean
   onRecord: (winnerId: string, finish: FinishType) => void
 }) {
@@ -240,8 +241,8 @@ function Side({
           <button
             key={finish}
             className="finishbtn chamfer-sm"
-            disabled={locked}
-            onClick={() => onRecord(playerId, finish)}
+            disabled={locked || playerId === null}
+            onClick={() => playerId !== null && onRecord(playerId, finish)}
           >
             <span className="finishbtn__pts">+{FINISH_POINTS[finish]}</span>
             <span className="finishbtn__body">

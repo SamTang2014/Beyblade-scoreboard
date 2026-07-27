@@ -13,14 +13,34 @@ function played(aId: string, bId: string, winnerId: string, loserPts: number): M
   const rounds: RoundResult[] = []
   for (let i = 0; i < loserPts; i++) rounds.push({ winnerId: loserId, finish: 'spin' })
   for (let i = 0; i < 4; i++) rounds.push({ winnerId, finish: 'spin' })
-  return { id: matchKey(aId, bId), round: 1, order: 1, aId, bId, rounds }
+  return {
+    id: matchKey(aId, bId),
+    stage: 'group',
+    round: 1,
+    order: 1,
+    aId,
+    bId,
+    aFrom: null,
+    bFrom: null,
+    rounds,
+  }
 }
 
 /** 打緊但未完。 */
 function inProgress(aId: string, bId: string, leaderId: string, pts: number): Match {
   const rounds: RoundResult[] = []
   for (let i = 0; i < pts; i++) rounds.push({ winnerId: leaderId, finish: 'spin' })
-  return { id: matchKey(aId, bId), round: 1, order: 1, aId, bId, rounds }
+  return {
+    id: matchKey(aId, bId),
+    stage: 'group',
+    round: 1,
+    order: 1,
+    aId,
+    bId,
+    aFrom: null,
+    bFrom: null,
+    rounds,
+  }
 }
 
 const order = (rows: { playerId: string }[]) => rows.map((r) => r.playerId)

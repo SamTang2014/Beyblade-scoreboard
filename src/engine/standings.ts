@@ -34,6 +34,10 @@ export function computeStandings(players: Player[], matches: Match[]): StandingR
   const headToHead = new Map<string, string>()
 
   for (const m of matches) {
+    // 淘汰階段唔入排名表 —— 排名係循環賽嘅嘢，淘汰賽睇籤表。
+    if (m.stage === 'bracket') continue
+    if (m.aId === null || m.bId === null) continue // 對手未定
+
     const winnerId = matchWinnerId(m)
     if (winnerId === null) continue // 未打完，唔計
 

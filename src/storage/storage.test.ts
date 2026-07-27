@@ -55,10 +55,13 @@ function withPlayers(t: Tournament): Tournament {
     matches: [
       {
         id: 'a__b',
+        stage: 'group',
         round: 1,
         order: 1,
         aId: 'a',
         bId: 'b',
+        aFrom: null,
+        bFrom: null,
         rounds: [{ winnerId: 'a', finish: 'burst' }],
       },
     ],
@@ -237,7 +240,42 @@ describe('匯入壞檔案', () => {
     const t = s.save(withPlayers(s.create('測試')))
     const file = JSON.parse(s.exportJson(t.id))
     file.tournaments[0].matches[0].bId = '路人甲'
-    expect(bad(JSON.stringify(file))).toThrow(/有選手唔喺名單度/)
+    expect(bad(JSON.stringify(file))).toThrow(/紅邊選手唔喺名單度/)
+  })
+
+  it('淘汰賽場次等緊一場唔存在嘅對戰', () => {
+    const s = store()
+    const t = s.save(withPlayers(s.create('測試')))
+    const file = JSON.parse(s.exportJson(t.id))
+    file.tournaments[0].matches[0].aFrom = 'b1m9'
+    expect(bad(JSON.stringify(file))).toThrow(/等緊一場唔存在嘅對戰/)
+  })
+
+  it('賽制唔認得', () => {
+    const s = store()
+    const t = s.save(withPlayers(s.create('測試')))
+    const file = JSON.parse(s.exportJson(t.id))
+    file.tournaments[0].mode = '瑞士制'
+    expect(bad(JSON.stringify(file))).toThrow(/賽制「瑞士制」唔認得/)
+  })
+
+  it('舊檔案冇 mode / stage / aFrom 都讀得返，當單循環', () => {
+    const s = store()
+    const t = s.save(withPlayers(s.create('舊賽事')))
+    const file = JSON.parse(s.exportJson(t.id))
+    delete file.tournaments[0].mode
+    delete file.tournaments[0].cutSize
+    delete file.tournaments[0].matches[0].stage
+    delete file.tournaments[0].matches[0].aFrom
+    delete file.tournaments[0].matches[0].bFrom
+
+    const fresh = createStore({ kv: new FakeKv(), now: () => 5000, newId: () => 'new' })
+    const [back] = fresh.importJson(JSON.stringify(file))
+    expect(back!.mode).toBe('roundRobin')
+    expect(back!.cutSize).toBeNull()
+    expect(back!.matches[0]!.stage).toBe('group')
+    expect(back!.matches[0]!.aFrom).toBeNull()
+    expect(back!.matches[0]!.rounds).toHaveLength(1) // 入咗嘅分冇走失
   })
 
   it('round 嘅贏家唔係嗰場嘅人', () => {

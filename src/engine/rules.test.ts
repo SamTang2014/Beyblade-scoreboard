@@ -13,10 +13,13 @@ import type { FinishType, Match } from './types'
 function match(rounds: { w: 'a' | 'b'; f: FinishType }[]): Match {
   return {
     id: 'p1__p2',
+    stage: 'group',
     round: 1,
     order: 1,
     aId: 'p1',
     bId: 'p2',
+    aFrom: null,
+    bFrom: null,
     rounds: rounds.map((r) => ({ winnerId: r.w === 'a' ? 'p1' : 'p2', finish: r.f })),
   }
 }

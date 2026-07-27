@@ -108,7 +108,8 @@ function RoundBlock({
 }
 
 function MatchRow({ id, match, tournament }: { id: string; match: Match; tournament: Tournament }) {
-  const nameOf = (pid: string) => tournament.players.find((p) => p.id === pid)?.name ?? '？'
+  const nameOf = (pid: string | null) =>
+    pid === null ? '等緊上場' : (tournament.players.find((p) => p.id === pid)?.name ?? '？')
   const score = matchScore(match)
   const winner = matchWinnerId(match)
   const status = matchStatus(match)

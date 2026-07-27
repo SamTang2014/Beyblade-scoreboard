@@ -26,7 +26,8 @@ export function Board({ id }: { id: string }) {
   const current = order.find((m) => matchWinnerId(m) === null) ?? null
   const rows = computeStandings(tournament.players, tournament.matches)
   const complete = isTournamentComplete(tournament.matches)
-  const nameOf = (pid: string) => tournament.players.find((p) => p.id === pid)?.name ?? '？'
+  const nameOf = (pid: string | null) =>
+    pid === null ? '等緊上場' : (tournament.players.find((p) => p.id === pid)?.name ?? '？')
 
   return (
     <div className="board">
