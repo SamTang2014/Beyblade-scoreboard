@@ -24,7 +24,12 @@ export function Schedule({ id }: { id: string }) {
 
   return (
     <>
-      <TopBar id={id} name={tournament.name || '未命名賽事'} current="schedule" />
+      <TopBar
+        id={id}
+        name={tournament.name || '未命名賽事'}
+        current="schedule"
+        mode={tournament.mode}
+      />
       <div className="page stack">
         {!showDial && tournament.matches.length > 0 && (
           <p className="note">

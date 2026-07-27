@@ -16,7 +16,12 @@ export function Matrix({ id }: { id: string }) {
   if (players.length === 0) {
     return (
       <>
-        <TopBar id={id} name={tournament.name || '未命名賽事'} current="matrix" />
+        <TopBar
+        id={id}
+        name={tournament.name || '未命名賽事'}
+        current="matrix"
+        mode={tournament.mode}
+      />
         <div className="page">
           <p className="empty">仲未有選手。</p>
         </div>
@@ -28,7 +33,12 @@ export function Matrix({ id }: { id: string }) {
 
   return (
     <>
-      <TopBar id={id} name={tournament.name || '未命名賽事'} current="matrix" />
+      <TopBar
+        id={id}
+        name={tournament.name || '未命名賽事'}
+        current="matrix"
+        mode={tournament.mode}
+      />
       <div className="page page--wide stack">
         <div className="tablewrap tablewrap--fit">
           <table className="matrix">

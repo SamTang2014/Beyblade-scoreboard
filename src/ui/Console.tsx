@@ -11,6 +11,8 @@ import {
   matchWinnerId,
 } from '../engine/rules'
 import { completedCount } from '../engine/standings'
+import { bracketRoundName, clearDownstream, downstreamWithScores, propagate, totalBracketRounds } from '../engine/bracket'
+import { groupStageComplete, hasBracket, nextPlayable } from '../engine/tournament'
 import { downloadJson } from '../lib/download'
 import { store } from '../storage/browserStore'
 import { TopBar } from './components/TopBar'
@@ -43,10 +45,13 @@ function ConsoleBody({
   error: string | null
 }) {
   const [focusId, setFocusId] = useState<string | null>(matchId)
+  const [armedEdit, setArmedEdit] = useState(false)
   const onwardRef = useRef<HTMLButtonElement>(null)
 
   const order = inPlayOrder(tournament.matches)
-  const firstOpen = order.find((m) => matchWinnerId(m) === null) ?? null
+  // 淘汰賽後面幾輪一開始就係「等緊上游」，揀到嗰啲嘅話個控制台會 show
+  // 一場根本打唔到嘅比賽，所以要跳過。
+  const firstOpen = nextPlayable(order) ?? order.find((m) => matchWinnerId(m) === null) ?? null
   const match = order.find((m) => m.id === focusId) ?? firstOpen ?? order[order.length - 1]!
   // 淘汰賽嘅對手可以未定 —— 等緊上游場次出結果。
   const nameOf = (pid: string | null) =>
@@ -56,22 +61,39 @@ function ConsoleBody({
   const winnerId = matchWinnerId(match)
   const position = order.findIndex((m) => m.id === match.id) + 1
 
+  /**
+   * 改完一場之後收尾：淘汰賽要清走下游已入嘅分再重新推進，
+   * 唔係個 4-2 會黐咗喺一個唔存在嘅對戰上面。
+   */
+  function applyEdit(t: Tournament, changed: Match[]): Match[] {
+    if (!hasBracket(t)) return changed
+    return clearDownstream(propagate(changed), match.id)
+  }
+
   function record(winner: string, finish: FinishType) {
     // 釘住呢場。唔釘嘅話一夠 4 分就即刻跳咗去下一場，
     // 主持人連邊個贏都未見到。
     setFocusId(match.id)
+    setArmedEdit(false)
     update((t) => ({
       ...t,
-      matches: t.matches.map((m) =>
-        m.id === match.id ? { ...m, rounds: [...m.rounds, { winnerId: winner, finish }] } : m,
+      matches: applyEdit(
+        t,
+        t.matches.map((m) =>
+          m.id === match.id ? { ...m, rounds: [...m.rounds, { winnerId: winner, finish }] } : m,
+        ),
       ),
     }))
   }
 
   function undo() {
+    setArmedEdit(false)
     update((t) => ({
       ...t,
-      matches: t.matches.map((m) => (m.id === match.id ? { ...m, rounds: m.rounds.slice(0, -1) } : m)),
+      matches: applyEdit(
+        t,
+        t.matches.map((m) => (m.id === match.id ? { ...m, rounds: m.rounds.slice(0, -1) } : m)),
+      ),
     }))
   }
 
@@ -80,9 +102,22 @@ function ConsoleBody({
     setFocusId(remaining.length > 0 ? remaining[0]!.id : null)
   }
 
+  // 淘汰賽講「決賽」「四強」，唔講「第 3 輪」—— 階段先係人記得住嗰樣嘢。
+  const stageLabel =
+    match.stage === 'bracket'
+      ? `${bracketRoundName(match.round, totalBracketRounds(tournament.matches))} · 第 ${match.order} 場`
+      : `第 ${match.round} 輪 · 全場第 ${position} 場`
+
+  // 改呢場會清走後面幾多場已經打完嘅。
+  const willClear = downstreamWithScores(tournament.matches, match.id)
+  const needsConfirm = willClear.length > 0 && !armedEdit
+
   const upcoming = order.find((m) => m.id !== match.id && matchWinnerId(m) === null) ?? null
   const done = completedCount(tournament.matches)
   const allDone = done === tournament.matches.length
+  // 循環打完但籤表未砌 —— 呢個唔算打完，仲有淘汰賽要打。
+  const cutPending =
+    tournament.mode === 'groupThenKnockout' && groupStageComplete(tournament) && !hasBracket(tournament)
 
   // 撳低嗰粒入分掣一贏就變 disabled，鍵盤焦點會跌返落 body。搬去「落一場」。
   useEffect(() => {
@@ -91,13 +126,16 @@ function ConsoleBody({
 
   return (
     <>
-      <TopBar id={id} name={tournament.name || '未命名賽事'} current="console" />
+      <TopBar
+        id={id}
+        name={tournament.name || '未命名賽事'}
+        current="console"
+        mode={tournament.mode}
+      />
 
       <div className="console">
         <div className="console__head">
-          <span className="u-eyebrow">
-            第 {match.round} 輪 · 全場第 {position} 場
-          </span>
+          <span className="u-eyebrow">{stageLabel}</span>
           <span className="u-eyebrow u-tab">
             打咗 {done}/{tournament.matches.length}
           </span>
@@ -110,6 +148,19 @@ function ConsoleBody({
           </button>
         </div>
 
+        {needsConfirm && (
+          <p className="note note--bad" role="alert">
+            <span>⚠</span>
+            <span>
+              呢場後面已經有 {willClear.length} 場打完咗。改呢場嘅話，嗰 {willClear.length}{' '}
+              場要重新打過。
+            </span>
+            <button className="btn btn--tight" onClick={() => setArmedEdit(true)}>
+              知道，照改
+            </button>
+          </p>
+        )}
+
         <div className="arena">
           <div className="arena__wash" aria-hidden="true" />
           <div className="arena__seam" aria-hidden="true" />
@@ -121,7 +172,7 @@ function ConsoleBody({
             score={score.a}
             rounds={match.rounds}
             playerId={match.aId}
-            locked={winnerId !== null}
+            locked={winnerId !== null || needsConfirm}
             onRecord={record}
           />
           <Side
@@ -131,7 +182,7 @@ function ConsoleBody({
             score={score.b}
             rounds={match.rounds}
             playerId={match.bId}
-            locked={winnerId !== null}
+            locked={winnerId !== null || needsConfirm}
             onRecord={record}
           />
         </div>
@@ -159,7 +210,7 @@ function ConsoleBody({
               </span>
             </div>
             <div className="btnrow">
-              <button className="btn chamfer" onClick={undo}>
+              <button className="btn chamfer" onClick={undo} disabled={needsConfirm}>
                 撳返轉頭
               </button>
               {upcoming !== null ? (
@@ -170,9 +221,13 @@ function ConsoleBody({
                 >
                   落一場
                 </button>
+              ) : cutPending ? (
+                <a className="btn btn--primary btn--big chamfer" href={`#/t/${id}/bracket`}>
+                  去砌籤表
+                </a>
               ) : allDone ? (
                 <a className="btn btn--primary btn--big chamfer" href={`#/t/${id}/table`}>
-                  睇最終排名
+                  {tournament.mode === 'knockout' ? '睇籤表' : '睇最終排名'}
                 </a>
               ) : null}
             </div>
@@ -180,7 +235,11 @@ function ConsoleBody({
           </div>
         ) : (
           <div className="console__foot">
-            <button className="btn btn--quiet" onClick={undo} disabled={match.rounds.length === 0}>
+            <button
+              className="btn btn--quiet"
+              onClick={undo}
+              disabled={match.rounds.length === 0 || needsConfirm}
+            >
               撳返轉頭
             </button>
             <span className="nextup">

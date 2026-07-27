@@ -5,6 +5,7 @@ import { Console } from './Console'
 import { Schedule } from './Schedule'
 import { Table } from './Table'
 import { Matrix } from './Matrix'
+import { Bracket } from './Bracket'
 import { Board } from './Board'
 
 export function App() {
@@ -20,6 +21,7 @@ export function App() {
       {route.name === 'schedule' && <Schedule key={route.id} id={route.id} />}
       {route.name === 'table' && <Table key={route.id} id={route.id} />}
       {route.name === 'matrix' && <Matrix key={route.id} id={route.id} />}
+      {route.name === 'bracket' && <Bracket key={route.id} id={route.id} />}
       {route.name === 'board' && <Board key={route.id} id={route.id} />}
     </div>
   )

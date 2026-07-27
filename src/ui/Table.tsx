@@ -16,7 +16,12 @@ export function Table({ id }: { id: string }) {
 
   return (
     <>
-      <TopBar id={id} name={tournament.name || '未命名賽事'} current="table" />
+      <TopBar
+        id={id}
+        name={tournament.name || '未命名賽事'}
+        current="table"
+        mode={tournament.mode}
+      />
       <div className="page stack">
         {complete && champion !== undefined && (
           <div className="verdict chamfer">

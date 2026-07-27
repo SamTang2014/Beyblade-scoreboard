@@ -13,13 +13,15 @@ export type Route =
   | { name: 'schedule'; id: string }
   | { name: 'table'; id: string }
   | { name: 'matrix'; id: string }
+  | { name: 'bracket'; id: string }
   | { name: 'board'; id: string }
 
-const SUB: Record<string, 'setup' | 'schedule' | 'table' | 'matrix' | 'board'> = {
+const SUB: Record<string, 'setup' | 'schedule' | 'table' | 'matrix' | 'bracket' | 'board'> = {
   setup: 'setup',
   schedule: 'schedule',
   table: 'table',
   matrix: 'matrix',
+  bracket: 'bracket',
   board: 'board',
 }
 

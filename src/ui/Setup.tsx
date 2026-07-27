@@ -1,10 +1,12 @@
 import { useRef, useState } from 'react'
 import { useTournament } from '../storage/browserStore'
-import { mergeSchedule, totalMatches, totalRounds } from '../engine/schedule'
+import { totalMatches, totalRounds } from '../engine/schedule'
+import { bracketRounds, byeCount } from '../engine/bracket'
+import { MODE_HINT, MODE_LABEL, canStart, cutOptions, startTournament } from '../engine/tournament'
 import { newId } from '../lib/id'
 import { go } from '../lib/router'
 import { TopBar } from './components/TopBar'
-import type { Player } from '../engine/types'
+import type { Player, TournamentMode } from '../engine/types'
 
 export function Setup({ id }: { id: string }) {
   const { tournament, update, error } = useTournament(id)
@@ -56,11 +58,21 @@ export function Setup({ id }: { id: string }) {
   }
 
   function buildSchedule() {
+    if (tournament === null) return
     if (players.length < 2) {
       setWarning('至少要有 2 個人先排到賽程。')
       return
     }
-    update((t) => ({ ...t, matches: mergeSchedule(t.matches, t.players) }))
+    if (!canStart(tournament.mode, players.length, tournament.cutSize)) {
+      const options = cutOptions(players.length)
+      setWarning(
+        tournament.cutSize !== null && !options.includes(tournament.cutSize)
+          ? `而家得 ${players.length} 個人，入圍人數最多只可以揀頭 ${Math.max(...options)} 名。`
+          : '揀埋入圍人數先排得到賽程。',
+      )
+      return
+    }
+    update((t) => ({ ...t, matches: startTournament(t, Math.random) }))
     go(`#/t/${id}`)
   }
 
@@ -69,7 +81,12 @@ export function Setup({ id }: { id: string }) {
 
   return (
     <>
-      <TopBar id={id} name={tournament.name || '未命名賽事'} current="setup" />
+      <TopBar
+        id={id}
+        name={tournament.name || '未命名賽事'}
+        current="setup"
+        mode={tournament.mode}
+      />
       <div className="page stack">
         <div className="field">
           <label className="field__label" htmlFor="tname">
@@ -83,6 +100,73 @@ export function Setup({ id }: { id: string }) {
             onChange={(e) => update((t) => ({ ...t, name: e.target.value }))}
           />
         </div>
+
+        <div className="field">
+          <span className="field__label">點打</span>
+          <div className="modes">
+            {(['roundRobin', 'knockout', 'groupThenKnockout'] as TournamentMode[]).map((m) => (
+              <button
+                key={m}
+                className="mode chamfer-sm"
+                aria-pressed={tournament.mode === m}
+                disabled={alreadyStarted}
+                onClick={() =>
+                  update((t) => ({
+                    ...t,
+                    mode: m,
+                    // 轉走「循環 + 淘汰」就冇入圍人數呢回事，唔好留住個舊值。
+                    cutSize: m === 'groupThenKnockout' ? (t.cutSize ?? 4) : null,
+                  }))
+                }
+              >
+                <span className="mode__name">{MODE_LABEL[m]}</span>
+                <span className="mode__hint">{MODE_HINT[m]}</span>
+              </button>
+            ))}
+          </div>
+          {alreadyStarted && (
+            <p className="note">
+              <span>·</span>
+              <span>賽事已經開咗波，改唔到賽制。要改就開過另一場。</span>
+            </p>
+          )}
+        </div>
+
+        {tournament.mode === 'groupThenKnockout' && (
+          <div className="field">
+            <span className="field__label">循環打完，頭幾多名入籤表</span>
+            <div className="chips">
+              {cutOptions(count).map((n) => (
+                <button
+                  key={n}
+                  className="chip chamfer-sm"
+                  aria-pressed={tournament.cutSize === n}
+                  disabled={alreadyStarted}
+                  onClick={() => update((t) => ({ ...t, cutSize: n }))}
+                >
+                  頭 {n} 名
+                </button>
+              ))}
+            </div>
+            {cutOptions(count).length === 0 ? (
+              <p className="note note--bad">
+                <span>⚠</span>
+                <span>至少要有 2 個人先揀到入圍人數。</span>
+              </p>
+            ) : (
+              tournament.cutSize !== null &&
+              !cutOptions(count).includes(tournament.cutSize) && (
+                <p className="note note--bad">
+                  <span>⚠</span>
+                  <span>
+                    而家揀咗頭 {tournament.cutSize} 名，但係得 {count} 個人。
+                    揀返上面其中一個。
+                  </span>
+                </p>
+              )
+            )}
+          </div>
+        )}
 
         <div className="field">
           <label className="field__label" htmlFor="pname">
@@ -156,27 +240,7 @@ export function Setup({ id }: { id: string }) {
           </div>
         )}
 
-        <div className="preview chamfer">
-          <div className="preview__cell">
-            <span className="preview__num u-tab">{count}</span>
-            <span className="u-eyebrow">個人</span>
-          </div>
-          <div className="preview__cell">
-            <span className="preview__num u-tab">{totalRounds(count)}</span>
-            <span className="u-eyebrow">輪</span>
-          </div>
-          <div className="preview__cell">
-            <span className="preview__num u-tab">{totalMatches(count)}</span>
-            <span className="u-eyebrow">場</span>
-          </div>
-        </div>
-
-        {count % 2 === 1 && count >= 3 && (
-          <p className="note">
-            <span>·</span>
-            <span>單數人，所以每輪會有一個人唞，輪流嚟，人人啱啱唞一次。</span>
-          </p>
-        )}
+        <Preview mode={tournament.mode} count={count} cutSize={tournament.cutSize} />
 
         {alreadyStarted && newMatches > 0 && (
           <p className="note">
@@ -203,6 +267,64 @@ export function Setup({ id }: { id: string }) {
           )}
         </div>
       </div>
+    </>
+  )
+}
+
+/** 開波前俾個數俾人心裡有數：打幾多場、幾多輪、有冇人輪空。 */
+function Preview({
+  mode,
+  count,
+  cutSize,
+}: {
+  mode: TournamentMode
+  count: number
+  cutSize: number | null
+}) {
+  const cells: { num: number; label: string }[] = [{ num: count, label: '個人' }]
+
+  if (mode === 'roundRobin' || mode === 'groupThenKnockout') {
+    cells.push({ num: totalRounds(count), label: '輪循環' })
+    cells.push({ num: totalMatches(count), label: '場循環' })
+  }
+  if (mode === 'knockout' || mode === 'groupThenKnockout') {
+    const inBracket = mode === 'knockout' ? count : (cutSize ?? 0)
+    if (inBracket >= 2) {
+      cells.push({ num: bracketRounds(inBracket), label: '輪淘汰' })
+      cells.push({ num: inBracket - 1, label: '場淘汰' })
+    }
+  }
+
+  const oddRoundRobin = mode !== 'knockout' && count % 2 === 1 && count >= 3
+  const byes = mode === 'knockout' ? byeCount(count) : 0
+
+  return (
+    <>
+      <div className="preview chamfer">
+        {cells.map((c) => (
+          <div className="preview__cell" key={c.label}>
+            <span className="preview__num u-tab">{c.num}</span>
+            <span className="u-eyebrow">{c.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {oddRoundRobin && (
+        <p className="note">
+          <span>·</span>
+          <span>單數人，所以每輪會有一個人唞，輪流嚟，人人啱啱唞一次。</span>
+        </p>
+      )}
+
+      {byes > 0 && (
+        <p className="note">
+          <span>·</span>
+          <span>
+            {count} 個人唔夠砌一個完整籤表，所以會有 {byes} 個人首圈輪空直接晉級。
+            邊個輪空係隨機抽嘅。
+          </span>
+        </p>
+      )}
     </>
   )
 }

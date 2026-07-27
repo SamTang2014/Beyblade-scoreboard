@@ -1018,6 +1018,144 @@ table {
   color: var(--gold-text);
 }
 
+/* ── 籤表 ───────────────────────────────────────────────── */
+
+/* 一欄一輪，由左到右。窄螢幕就橫向捲，唔逼佢擠埋一堆。 */
+.bracket {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(11rem, 1fr);
+  gap: var(--sp-4);
+  overflow-x: auto;
+  padding-bottom: var(--sp-3);
+}
+
+.bracket__col {
+  display: flex;
+  flex-direction: column;
+  /* 每一輪場次少一半，所以平均分空間就自然對到上一輪兩場中間。 */
+  justify-content: space-around;
+  gap: var(--sp-3);
+}
+
+.bracket__head {
+  margin-bottom: var(--sp-1);
+  text-align: center;
+}
+
+.bmatch {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--edge);
+  background: var(--slab);
+  color: inherit;
+  text-decoration: none;
+}
+
+.bmatch:hover {
+  border-color: var(--ink);
+}
+
+.bmatch--waiting {
+  border-style: dashed;
+  border-color: var(--line);
+}
+
+.bslot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  min-height: 2.5rem;
+}
+
+.bslot + .bslot {
+  border-top: 1px solid var(--line);
+}
+
+.bslot__name {
+  overflow: hidden;
+  font-variation-settings: 'wdth' 95, 'wght' 650;
+  font-size: var(--step--1);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bslot__score {
+  font-variation-settings: 'wdth' 110, 'wght' 800;
+}
+
+.bslot--won .bslot__name,
+.bslot--won .bslot__score {
+  font-variation-settings: 'wdth' 105, 'wght' 800;
+  color: var(--blue);
+}
+
+.bslot--lost .bslot__name,
+.bslot--lost .bslot__score {
+  color: var(--ink-faint);
+}
+
+.bslot--waiting .bslot__name {
+  color: var(--ink-faint);
+  font-variation-settings: 'wdth' 85, 'wght' 600;
+  font-style: italic;
+}
+
+/* ── 賽制揀選 ───────────────────────────────────────────── */
+
+.modes {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.mode {
+  display: block;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--edge);
+  background: var(--slab);
+  text-align: left;
+  width: 100%;
+}
+
+.mode[aria-pressed='true'] {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.mode__name {
+  display: block;
+  font-size: var(--step-0);
+  font-variation-settings: 'wdth' 100, 'wght' 700;
+}
+
+.mode__hint {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.chip {
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--edge);
+  background: var(--slab);
+  font-variation-settings: 'wdth' 100, 'wght' 700;
+}
+
+.chip[aria-pressed='true'] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--floor);
+}
+
 /* ── 轉盤（招牌）─────────────────────────────────────────── */
 
 /* svg 預設係 inline，唔轉做 block 嘅話 margin-inline: auto 置唔到中。
