@@ -117,7 +117,14 @@ export function Home() {
         ) : (
           <div className="tlist">
             {list.map((t) => (
-              <TournamentCard key={t.id} summary={t} />
+              <TournamentCard
+                key={t.id}
+                summary={t}
+                onDeleted={(name) => {
+                  setList(store.list())
+                  setMessage(`刪咗「${name || '未命名賽事'}」。`)
+                }}
+              />
             ))}
           </div>
         )}
@@ -126,7 +133,14 @@ export function Home() {
   )
 }
 
-function TournamentCard({ summary }: { summary: Summary }) {
+function TournamentCard({
+  summary,
+  onDeleted,
+}: {
+  summary: Summary
+  onDeleted: (name: string) => void
+}) {
+  const [armed, setArmed] = useState(false)
   const t = store.get(summary.id)
   // 用「打完咗」而唔係「開咗波」，同排名版嗰個數一致。
   const done = t === null ? 0 : completedCount(t.matches)
@@ -134,19 +148,60 @@ function TournamentCard({ summary }: { summary: Summary }) {
   const target = summary.matchCount === 0 ? `#/t/${summary.id}/setup` : `#/t/${summary.id}`
 
   return (
-    <a className="tcard chamfer" href={target}>
-      <div className="tcard__top">
-        <span className="tcard__name">{summary.name || '未命名賽事'}</span>
-        <span className="tcard__meta u-tab">{formatWhen(summary.updatedAt)}</span>
-      </div>
-      <div className="tcard__bar">
-        <div className="tcard__fill" style={{ width: `${pct}%` }} />
-      </div>
-      <div className="tcard__foot u-tab">
-        {summary.playerCount} 個人 ·{' '}
-        {summary.matchCount === 0 ? '仲未排賽程' : `打咗 ${done} / ${summary.matchCount} 場`}
-      </div>
-    </a>
+    <div className="tcard chamfer">
+      <a className="tcard__main" href={target}>
+        <div className="tcard__top">
+          <span className="tcard__name">{summary.name || '未命名賽事'}</span>
+          <span className="tcard__meta u-tab">{formatWhen(summary.updatedAt)}</span>
+        </div>
+        <div className="tcard__bar">
+          <div className="tcard__fill" style={{ width: `${pct}%` }} />
+        </div>
+        <div className="tcard__foot u-tab">
+          {summary.playerCount} 個人 ·{' '}
+          {summary.matchCount === 0 ? '仲未排賽程' : `打咗 ${done} / ${summary.matchCount} 場`}
+        </div>
+      </a>
+
+      {armed ? (
+        /* 冇後端，刪咗係真係救唔返，所以確認嗰陣順手俾條路你先備份。 */
+        <div className="tcard__confirm" role="group" aria-label={`刪除 ${summary.name}`}>
+          <span className="tcard__warn">
+            {done === 0
+              ? '刪咗就冇㗎喇，救唔返。'
+              : `打咗嘅 ${done} 場成績會一齊冇，救唔返。`}
+          </span>
+          <button
+            className="btn btn--tight"
+            onClick={() => downloadJson(summary.name, store.exportJson(summary.id))}
+          >
+            先 down 低
+          </button>
+          <button className="btn btn--quiet btn--tight" onClick={() => setArmed(false)}>
+            算數
+          </button>
+          <button
+            className="btn btn--danger btn--armed btn--tight"
+            onClick={() => {
+              store.remove(summary.id)
+              onDeleted(summary.name)
+            }}
+          >
+            真係刪
+          </button>
+        </div>
+      ) : (
+        <div className="tcard__actions">
+          <button
+            className="btn btn--danger btn--tight"
+            onClick={() => setArmed(true)}
+            aria-label={`刪除 ${summary.name || '未命名賽事'}`}
+          >
+            刪除
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 

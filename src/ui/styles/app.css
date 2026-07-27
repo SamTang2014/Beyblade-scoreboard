@@ -68,7 +68,7 @@ table {
 .chamfer:focus-visible,
 .chamfer-sm:focus-visible,
 .finishbtn:focus-visible,
-.tcard:focus-visible {
+.tcard__main:focus-visible {
   outline: 0;
   box-shadow: inset 0 0 0 3px var(--ink), inset 0 0 0 6px var(--slab);
 }
@@ -334,19 +334,48 @@ table {
 }
 
 .tcard {
-  display: block;
-  padding: var(--sp-4);
   border: 1px solid var(--edge);
   background: var(--slab);
   color: inherit;
   text-align: left;
-  text-decoration: none;
   transition: border-color 0.12s ease;
   width: 100%;
 }
 
 .tcard:hover {
   border-color: var(--ink);
+}
+
+/* 卡入面個連結同粒刪除掣要分開 —— <button> 唔可以塞喺 <a> 入面。 */
+.tcard__main {
+  display: block;
+  padding: var(--sp-4) var(--sp-4) var(--sp-3);
+  color: inherit;
+  text-decoration: none;
+}
+
+.tcard__actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 var(--sp-3) var(--sp-2);
+}
+
+.tcard__confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3) var(--sp-3);
+  background: var(--red-wash);
+}
+
+.tcard__warn {
+  flex: 1;
+  min-width: 12ch;
+  color: var(--ink);
+  font-size: var(--step--1);
+  font-variation-settings: 'wdth' 95, 'wght' 650;
 }
 
 .tcard__top {
