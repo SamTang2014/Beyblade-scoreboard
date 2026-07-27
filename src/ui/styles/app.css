@@ -1020,13 +1020,15 @@ table {
 
 /* ── 轉盤（招牌）─────────────────────────────────────────── */
 
-/* svg 預設係 inline，唔轉做 block 嘅話 margin-inline: auto 置唔到中。 */
+/* svg 預設係 inline，唔轉做 block 嘅話 margin-inline: auto 置唔到中。
+   唔鎖 aspect-ratio —— 個 viewBox 會跟住最長嗰個名撐闊。 */
 .dial {
   display: block;
   width: 100%;
-  max-width: 26rem;
+  max-width: 34rem;
+  height: auto;
   margin-inline: auto;
-  aspect-ratio: 1;
+  overflow: visible;
 }
 
 .dial__ring {
@@ -1038,13 +1040,39 @@ table {
 .dial__chord {
   stroke: var(--ink);
   stroke-width: 1.5;
-  opacity: 0.75;
+  opacity: 0.7;
+  stroke-linecap: round;
 }
 
 .dial__chord--bye {
   stroke: var(--ink-faint);
   stroke-dasharray: 3 4;
   opacity: 0.5;
+}
+
+/* 個轂：遮住穿過圓心嗰條線，順便做個軸心 —— 陀螺本身就係咁轉。 */
+.dial__hub {
+  fill: var(--floor);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.dial__hub-no {
+  fill: var(--ink);
+  font-size: 15px;
+  font-variation-settings: 'wdth' 125, 'wght' 800;
+  font-variant-numeric: tabular-nums;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.dial__hub-cap {
+  fill: var(--ink-faint);
+  font-size: 6px;
+  font-variation-settings: 'wdth' 80, 'wght' 700;
+  letter-spacing: 0.1em;
+  text-anchor: middle;
+  dominant-baseline: middle;
 }
 
 .dial__seat {
@@ -1057,8 +1085,14 @@ table {
   stroke-width: 1.5;
 }
 
-.dial__dot--fixed {
-  fill: var(--ink);
+.dial__dot--blue {
+  fill: var(--blue);
+  stroke: var(--blue);
+}
+
+.dial__dot--red {
+  fill: var(--red);
+  stroke: var(--red);
 }
 
 .dial__dot--bye {
@@ -1067,20 +1101,27 @@ table {
   stroke-dasharray: 3 3;
 }
 
-.dial__label {
-  fill: var(--ink);
-  font-size: 7px;
-  font-variation-settings: 'wdth' 90, 'wght' 700;
-  text-anchor: middle;
-  dominant-baseline: middle;
+/* 釘死嗰個位加個圈，睇得出佢成場都唔郁。 */
+.dial__pin {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1;
+  opacity: 0.45;
 }
 
-.dial__label--fixed {
-  fill: var(--floor);
+.dial__label {
+  fill: var(--ink);
+  font-variation-settings: 'wdth' 90, 'wght' 700;
+  dominant-baseline: middle;
+  paint-order: stroke;
+  stroke: var(--floor);
+  stroke-width: 2.5px;
+  stroke-linejoin: round;
 }
 
 .dial__label--bye {
   fill: var(--ink-faint);
+  font-variation-settings: 'wdth' 90, 'wght' 650;
 }
 
 .dial__caption {

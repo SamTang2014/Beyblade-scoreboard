@@ -41,7 +41,8 @@ export function Schedule({ id }: { id: string }) {
             <CircleDial
               players={tournament.players}
               round={shownRound}
-              caption={`第 ${shownRound} 輪。實心嗰個位釘死唔郁，其餘每過一輪順時針行一格，行到邊個位就同對面嗰位打。`}
+              matches={tournament.matches}
+              caption="有圈嗰個位釘死唔郁，其餘每過一輪順時針行一格，行到邊個位就同對面嗰位打。藍點紅點就係嗰場邊個企藍邊、邊個企紅邊。"
             />
             <div className="btnrow" style={{ justifyContent: 'center', marginTop: 'var(--sp-3)' }}>
               <button

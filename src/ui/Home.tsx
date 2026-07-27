@@ -79,7 +79,7 @@ export function Home() {
         <CircleDial
           players={DEMO}
           round={round}
-          caption={`第 ${round} 輪 · 實心嗰個位釘死，其餘順時針行一格`}
+          caption="有圈嗰個位釘死，其餘順時針行一格"
         />
       </section>
 
