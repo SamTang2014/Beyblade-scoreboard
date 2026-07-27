@@ -22,5 +22,5 @@
     "skipLibCheck": true
   },
   "include": ["src", "vite.config.ts"],
-  "exclude": ["**/__scratch__/**"]
+  "exclude": ["**/__scratch__/**", "**/_probe/**", "**/*probe*"]
 }

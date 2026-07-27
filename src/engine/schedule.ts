@@ -162,6 +162,19 @@ export function mergeSchedule(existing: Match[], players: Player[]): Match[] {
   return [...kept, ...appended]
 }
 
+/**
+ * 而家個賽程係咪仲係一個乾淨嘅圓周法排程。
+ *
+ * 中途加過人之後，補返嘅場次係貪心塞落尾嘅新輪次，唔再係轉盤轉出嚟嘅。
+ * 呢個時候轉盤同賽程會對唔上，所以介面要收起個轉盤，唔好講大話。
+ */
+export function isPureCircleSchedule(matches: Match[], players: Player[]): boolean {
+  const ideal = generateSchedule(players)
+  if (ideal.length !== matches.length) return false
+  const slots = new Set(ideal.map((m) => `${m.round}:${m.id}`))
+  return matches.every((m) => slots.has(`${m.round}:${m.id}`))
+}
+
 /** 邊個喺呢輪冇得打。 */
 export function byesInRound(matches: Match[], players: Player[], round: number): Player[] {
   const playing = new Set<string>()

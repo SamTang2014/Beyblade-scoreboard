@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTournament } from '../storage/browserStore'
-import { byesInRound, inPlayOrder, totalRounds } from '../engine/schedule'
+import { byesInRound, inPlayOrder, isPureCircleSchedule, totalRounds } from '../engine/schedule'
 import { matchScore, matchStatus, matchWinnerId } from '../engine/rules'
 import { TopBar } from './components/TopBar'
 import { CircleDial } from './components/CircleDial'
@@ -16,11 +16,27 @@ export function Schedule({ id }: { id: string }) {
   const rounds = [...new Set(inPlayOrder(tournament.matches).map((m) => m.round))]
   const laps = totalRounds(tournament.players.length)
 
+  // 中途加過人之後賽程唔再係轉盤轉出嚟，個轉盤會同下面啲場次對唔上，所以收起佢。
+  const showDial =
+    tournament.players.length >= 2 &&
+    (tournament.matches.length === 0 ||
+      isPureCircleSchedule(tournament.matches, tournament.players))
+
   return (
     <>
       <TopBar id={id} name={tournament.name || '未命名賽事'} current="schedule" />
       <div className="page stack">
-        {tournament.players.length >= 2 && (
+        {!showDial && tournament.matches.length > 0 && (
+          <p className="note">
+            <span>·</span>
+            <span>
+              呢個賽程中途加過人，補返嘅場次係插喺尾嘅，唔再係一個乾淨嘅圓周法轉盤，
+              所以唔畫轉盤住。下面每一輪都仍然冇人要打兩場。
+            </span>
+          </p>
+        )}
+
+        {showDial && (
           <section>
             <CircleDial
               players={tournament.players}

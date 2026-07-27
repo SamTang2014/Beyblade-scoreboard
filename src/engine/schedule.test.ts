@@ -4,6 +4,7 @@ import {
   circleFrame,
   generateSchedule,
   inPlayOrder,
+  isPureCircleSchedule,
   mergeSchedule,
   totalMatches,
   totalRounds,
@@ -245,6 +246,33 @@ describe('中途加人', () => {
 
   it('由零開始 merge 等同直接排', () => {
     expect(mergeSchedule([], base)).toEqual(baseSchedule)
+  })
+})
+
+describe('係咪乾淨嘅圓周法排程', () => {
+  it('啱啱排完就係', () => {
+    for (const n of SIZES) {
+      const ps = players(n)
+      expect(isPureCircleSchedule(generateSchedule(ps), ps)).toBe(true)
+    }
+  })
+
+  it('中途加咗人就唔再係 —— 轉盤同賽程會對唔上，所以要收起', () => {
+    const base = players(4)
+    const ps = [...base, { id: 'p5', name: '新仔', seat: 4 }]
+    const merged = mergeSchedule(generateSchedule(base), ps)
+    expect(isPureCircleSchedule(merged, ps)).toBe(false)
+  })
+
+  it('場次少咗都唔算', () => {
+    const ps = players(5)
+    expect(isPureCircleSchedule(generateSchedule(ps).slice(1), ps)).toBe(false)
+  })
+
+  it('同一批配對但輪次唔啱都唔算', () => {
+    const ps = players(4)
+    const shifted = generateSchedule(ps).map((m) => ({ ...m, round: 1 }))
+    expect(isPureCircleSchedule(shifted, ps)).toBe(false)
   })
 })
 

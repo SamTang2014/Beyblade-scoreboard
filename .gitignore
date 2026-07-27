@@ -6,3 +6,5 @@ dist/
 # 檢查用嘅臨時檔，唔入 repo
 **/__scratch__/
 src/tmpprobe*.test.ts
+**/_probe/
+**/*probe*
