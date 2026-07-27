@@ -1,0 +1,90 @@
+/*
+  設計語言：擂台地板。
+  ─────────────────────────────────────────────
+  兩極 = 藍邊同紅邊。陀螺對戰本身就係藍紅兩邊，所以成個介面
+  由中間一條斜線劈開，唔係裝飾，係場地本身嘅結構。
+
+  斜切角（chamfer）由擂台嘅斜壁同 Beyblade X 個 X 嚟。所有方塊
+  都係切角，唔係圓角 —— 圓角太軟，直角太靜。
+
+  底色用冷灰水泥而唔係深黑：比賽通常喺商場、模型店呢啲光猛地方
+  舉行，主持人攞住部電話企喺度撳，淺色睇得清楚啲。
+  投屏模式先反過嚟用深色，因為電視多數擺喺暗啲嘅角落。
+*/
+
+:root {
+  /* 顏色 */
+  --floor: #e3e5e9;
+  --floor-sunk: #d3d6dd;
+  --slab: #ffffff;
+  --ink: #14161c;
+  --ink-soft: #5b6273;
+  --ink-faint: #8d94a3;
+  --line: #c2c7d2;
+
+  --blue: #1338e0;
+  --blue-deep: #0a1c78;
+  --blue-wash: #dfe4fb;
+  --red: #dd1a21;
+  --red-deep: #7d0c10;
+  --red-wash: #fce0e0;
+  --gold: #e09400;
+
+  --on-blue: #ffffff;
+  --on-red: #ffffff;
+
+  /* 字體。Archivo 有闊度軸，所以一個 family 做到三種角色：
+     特闊做大字同數字、正常闊度做內文、窄身做細標籤。
+     中文字冇闊度軸，一律行 PingFang HK，兩種字混排啱啱好。 */
+  --font: 'Archivo Variable', 'PingFang HK', 'PingFang TC', 'Noto Sans HK', 'Microsoft JhengHei',
+    system-ui, sans-serif;
+
+  /* 字級 */
+  --step--2: 0.6875rem;
+  --step--1: 0.8125rem;
+  --step-0: 1rem;
+  --step-1: 1.25rem;
+  --step-2: 1.5625rem;
+  --step-3: 1.953rem;
+  --step-4: 2.441rem;
+  --step-5: 3.052rem;
+
+  /* 間距 */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 3rem;
+
+  /* 切角大小 */
+  --ch: 0.75rem;
+  --ch-sm: 0.4375rem;
+
+  /* 擂台中間條斜線由中線向左右各偏幾多。 */
+  --slant: 1.75rem;
+
+  --shadow: 0 1px 0 rgb(20 22 28 / 0.06), 0 2px 8px rgb(20 22 28 / 0.07);
+}
+
+/* 投屏模式：燈熄咗，擂台亮起。 */
+.is-dark {
+  --floor: #0c0d12;
+  --floor-sunk: #06070a;
+  --slab: #16181f;
+  --ink: #f4f5f7;
+  --ink-soft: #a2a9ba;
+  --ink-faint: #6c7385;
+  --line: #2b2f3b;
+
+  --blue: #4b6bff;
+  --blue-deep: #8fa4ff;
+  --blue-wash: #141a3d;
+  --red: #ff4d4d;
+  --red-deep: #ff9a9a;
+  --red-wash: #3a1214;
+  --gold: #ffc046;
+
+  --shadow: none;
+}
