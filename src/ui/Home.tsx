@@ -4,6 +4,7 @@ import { downloadJson, pickJsonFile } from '../lib/download'
 import { go } from '../lib/router'
 import { CircleDial } from './components/CircleDial'
 import { totalRounds } from '../engine/schedule'
+import { completedCount } from '../engine/standings'
 import type { Player } from '../engine/types'
 import type { TournamentSummary as Summary } from '../storage/storage'
 
@@ -127,7 +128,8 @@ export function Home() {
 
 function TournamentCard({ summary }: { summary: Summary }) {
   const t = store.get(summary.id)
-  const done = t === null ? 0 : t.matches.filter((m) => m.rounds.length > 0).length
+  // 用「打完咗」而唔係「開咗波」，同排名版嗰個數一致。
+  const done = t === null ? 0 : completedCount(t.matches)
   const pct = summary.matchCount === 0 ? 0 : (done / summary.matchCount) * 100
   const target = summary.matchCount === 0 ? `#/t/${summary.id}/setup` : `#/t/${summary.id}`
 

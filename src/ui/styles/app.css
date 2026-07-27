@@ -471,9 +471,18 @@ table {
 .console__head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-4) 0;
+  padding: var(--sp-2) var(--sp-4) 0;
+}
+
+.console__head > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.btn--tight {
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--step--1);
 }
 
 .arena {

@@ -74,6 +74,13 @@ export function Console({ id, matchId = null }: { id: string; matchId?: string |
           <span className="u-eyebrow u-tab">
             打咗 {done}/{tournament.matches.length}
           </span>
+          {/* 常駐。資料淨係喺呢部機，備份要隨時撳到，唔可以等打完先出現。 */}
+          <button
+            className="btn btn--quiet btn--tight"
+            onClick={() => downloadJson(tournament.name, store.exportJson(tournament.id))}
+          >
+            備份
+          </button>
         </div>
 
         <div className="arena">
