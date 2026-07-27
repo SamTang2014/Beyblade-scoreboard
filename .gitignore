@@ -3,6 +3,11 @@ dist/
 .DS_Store
 *.local
 
+# 本機嘅 ~/.gitignore_global 有一條 README.md，會令所有 repo 嘅 README 都入唔到 git。
+# 呢個 repo 公開，份 README 就係人哋第一眼睇嘅嘢，所以喺呢度破例。
+# repo 嘅 .gitignore 優先過全域，所以呢行有效，同時唔影響你其他 project。
+!README.md
+
 # 檢查用嘅臨時檔，唔入 repo
 **/__scratch__/
 src/tmpprobe*.test.ts
