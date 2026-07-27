@@ -9,7 +9,7 @@
 
   底色用冷灰水泥而唔係深黑：比賽通常喺商場、模型店呢啲光猛地方
   舉行，主持人攞住部電話企喺度撳，淺色睇得清楚啲。
-  投屏模式先反過嚟用深色，因為電視多數擺喺暗啲嘅角落。
+  電視模式先反過嚟用深色，因為電視多數擺喺暗啲嘅角落。
 */
 
 :root {
@@ -19,8 +19,13 @@
   --slab: #ffffff;
   --ink: #14161c;
   --ink-soft: #5b6273;
-  --ink-faint: #8d94a3;
+  /* 4.55:1 on --slab。原本 #8d94a3 得 3.04:1，未過 WCAG 1.4.3。 */
+  --ink-faint: #6b7284;
+  /* 分隔線，純裝飾。 */
   --line: #c2c7d2;
+  /* 可撳嘅嘢（掣、輸入格、卡）用呢條邊：4.1:1 on white、3.2:1 on --floor，
+     過到 WCAG 1.4.11 嘅 3:1 非文字對比。 */
+  --edge: #767d8d;
 
   --blue: #1338e0;
   --blue-deep: #0a1c78;
@@ -28,7 +33,10 @@
   --red: #dd1a21;
   --red-deep: #7d0c10;
   --red-wash: #fce0e0;
+  /* 淨係做裝飾（.note 條邊），唔用嚟寫字。 */
   --gold: #e09400;
+  /* 金色寫字版：5.0:1 on white。#e09400 得 2.9:1，細字過唔到。 */
+  --gold-text: #8a5a00;
 
   --on-blue: #ffffff;
   --on-red: #ffffff;
@@ -68,15 +76,17 @@
   --shadow: 0 1px 0 rgb(20 22 28 / 0.06), 0 2px 8px rgb(20 22 28 / 0.07);
 }
 
-/* 投屏模式：燈熄咗，擂台亮起。 */
+/* 電視模式：燈熄咗，擂台亮起。 */
 .is-dark {
   --floor: #0c0d12;
   --floor-sunk: #06070a;
   --slab: #16181f;
   --ink: #f4f5f7;
   --ink-soft: #a2a9ba;
-  --ink-faint: #6c7385;
+  /* 5.6:1 on --slab #16181f。原本 #6c7385 太暗。 */
+  --ink-faint: #868da0;
   --line: #2b2f3b;
+  --edge: #545b6c;
 
   --blue: #4b6bff;
   --blue-deep: #8fa4ff;
@@ -85,6 +95,7 @@
   --red-deep: #ff9a9a;
   --red-wash: #3a1214;
   --gold: #ffc046;
+  --gold-text: #ffc046;
 
   --shadow: none;
 }

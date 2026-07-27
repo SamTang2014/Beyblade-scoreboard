@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTournament } from '../storage/browserStore'
 import { inPlayOrder } from '../engine/schedule'
 import {
@@ -19,10 +19,31 @@ import type { FinishType, Match, Tournament } from '../engine/types'
 
 export function Console({ id, matchId = null }: { id: string; matchId?: string | null }) {
   const { tournament, update, error } = useTournament(id)
-  const [focusId, setFocusId] = useState<string | null>(matchId)
 
   if (tournament === null) return <NotFound />
   if (tournament.matches.length === 0) return <NeedsSchedule id={id} name={tournament.name} />
+
+  return (
+    <ConsoleBody id={id} matchId={matchId} tournament={tournament} update={update} error={error} />
+  )
+}
+
+/** 分開一層，等 hook 唔使排喺 early return 後面。 */
+function ConsoleBody({
+  id,
+  matchId,
+  tournament,
+  update,
+  error,
+}: {
+  id: string
+  matchId: string | null
+  tournament: Tournament
+  update: (change: (t: Tournament) => Tournament) => void
+  error: string | null
+}) {
+  const [focusId, setFocusId] = useState<string | null>(matchId)
+  const onwardRef = useRef<HTMLButtonElement>(null)
 
   const order = inPlayOrder(tournament.matches)
   const firstOpen = order.find((m) => matchWinnerId(m) === null) ?? null
@@ -61,6 +82,11 @@ export function Console({ id, matchId = null }: { id: string; matchId?: string |
   const upcoming = order.find((m) => m.id !== match.id && matchWinnerId(m) === null) ?? null
   const done = completedCount(tournament.matches)
   const allDone = done === tournament.matches.length
+
+  // 撳低嗰粒入分掣一贏就變 disabled，鍵盤焦點會跌返落 body。搬去「落一場」。
+  useEffect(() => {
+    if (winnerId !== null) onwardRef.current?.focus()
+  }, [winnerId, match.id])
 
   return (
     <>
@@ -117,7 +143,13 @@ export function Console({ id, matchId = null }: { id: string; matchId?: string |
         )}
 
         {winnerId !== null ? (
-          <div className={`verdict pop ${winnerId === match.aId ? 'verdict--blue' : 'verdict--red'}`}>
+          /* role="status" 令贏咗嗰下讀屏器會讀出邊個贏、幾比幾。
+             撳低嗰粒掣一贏就變 disabled，鍵盤焦點會跌返落 body，
+             所以要主動搬去「落一場」。 */
+          <div
+            className={`verdict pop ${winnerId === match.aId ? 'verdict--blue' : 'verdict--red'}`}
+            role="status"
+          >
             <div>
               <span className="u-eyebrow">呢場贏咗</span>
               <div className="verdict__who">{nameOf(winnerId)}</div>
@@ -130,7 +162,11 @@ export function Console({ id, matchId = null }: { id: string; matchId?: string |
                 撳返轉頭
               </button>
               {upcoming !== null ? (
-                <button className="btn btn--primary btn--big chamfer" onClick={nextMatch}>
+                <button
+                  ref={onwardRef}
+                  className="btn btn--primary btn--big chamfer"
+                  onClick={nextMatch}
+                >
                   落一場
                 </button>
               ) : allDone ? (

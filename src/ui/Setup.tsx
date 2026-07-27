@@ -10,6 +10,7 @@ export function Setup({ id }: { id: string }) {
   const { tournament, update, error } = useTournament(id)
   const [draft, setDraft] = useState('')
   const [warning, setWarning] = useState<string | null>(null)
+  const [armed, setArmed] = useState<string | null>(null)
   const nameBox = useRef<HTMLInputElement>(null)
 
   if (tournament === null) return <NotFound />
@@ -31,7 +32,22 @@ export function Setup({ id }: { id: string }) {
     nameBox.current?.focus()
   }
 
+  /** 呢個選手已經打咗幾多場 —— 除名會連呢啲成績一齊冇。 */
+  function playedCountOf(playerId: string): number {
+    return tournament === null
+      ? 0
+      : tournament.matches.filter(
+          (m) => (m.aId === playerId || m.bId === playerId) && m.rounds.length > 0,
+        ).length
+  }
+
   function removePlayer(player: Player) {
+    // 有成績嘅要撳兩次先郁得到。冇後端，除錯咗係救唔返嘅。
+    if (playedCountOf(player.id) > 0 && armed !== player.id) {
+      setArmed(player.id)
+      return
+    }
+    setArmed(null)
     update((t) => ({
       ...t,
       players: t.players.filter((p) => p.id !== player.id),
@@ -111,19 +127,32 @@ export function Setup({ id }: { id: string }) {
           <div className="roster">
             {[...players]
               .sort((a, b) => a.seat - b.seat)
-              .map((p, i) => (
-                <div className="roster__row chamfer-sm" key={p.id}>
-                  <span className="roster__seat">{i + 1}</span>
-                  <span className="roster__name">{p.name}</span>
-                  <button
-                    className="btn btn--danger"
-                    onClick={() => removePlayer(p)}
-                    aria-label={`除名 ${p.name}`}
-                  >
-                    除名
-                  </button>
-                </div>
-              ))}
+              .map((p, i) => {
+                const hasPlayed = playedCountOf(p.id)
+                const isArmed = armed === p.id
+                return (
+                  <div className="roster__row chamfer-sm" key={p.id}>
+                    <span className="roster__seat">{i + 1}</span>
+                    <span className="roster__name">{p.name}</span>
+                    {isArmed && (
+                      <button className="btn btn--quiet" onClick={() => setArmed(null)}>
+                        算數
+                      </button>
+                    )}
+                    <button
+                      className={isArmed ? 'btn btn--danger btn--armed' : 'btn btn--danger'}
+                      onClick={() => removePlayer(p)}
+                      aria-label={
+                        isArmed
+                          ? `真係除名 ${p.name}，連佢打咗嘅 ${hasPlayed} 場成績一齊冇`
+                          : `除名 ${p.name}`
+                      }
+                    >
+                      {isArmed ? `真係除？${hasPlayed} 場成績會冇` : '除名'}
+                    </button>
+                  </div>
+                )
+              })}
           </div>
         )}
 

@@ -122,6 +122,18 @@ describe('賽事存取', () => {
     expect(store().get('唔存在')).toBeNull()
   })
 
+  it('賽事名刪到吉都仲讀返到 —— 唔可以因為個名吉就丟走成場賽事', () => {
+    const s = store()
+    const t = s.save(withPlayers(s.create('測試')))
+    s.save({ ...t, name: '' })
+
+    const back = store().get(t.id)
+    expect(back).not.toBeNull()
+    expect(back!.name).toBe('')
+    expect(back!.matches[0]!.rounds).toHaveLength(1) // 入咗嘅分仲喺度
+    expect(store().list()).toHaveLength(1)
+  })
+
   it('localStorage 爆咗會講明，唔會靜靜哋唔見咗', () => {
     const s = store()
     kv.full = true

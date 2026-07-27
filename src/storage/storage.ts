@@ -189,6 +189,18 @@ function str(v: unknown, where: string): string {
   return v
 }
 
+/**
+ * 容許吉字串。
+ *
+ * 讀嘅時候一定要接受寫得入去嘅嘢：介面容許賽事名吉（成個 app 都有
+ * 「未命名賽事」呢個 fallback），如果 parser 反過嚟當佢係壞資料，
+ * 用戶一 select-all 刪走個名，成場賽事連分數就會俾 readAll() 靜靜哋丟走。
+ */
+function text(v: unknown, where: string): string {
+  if (typeof v !== 'string') throw new ImportError(`${where} 唔係文字。`)
+  return v
+}
+
 function num(v: unknown, where: string): number {
   if (typeof v !== 'number' || !Number.isFinite(v)) throw new ImportError(`${where} 唔係數字。`)
   return v
@@ -247,7 +259,7 @@ export function parseTournament(v: unknown): Tournament {
 
   return {
     id: str(v.id, '賽事 id'),
-    name: str(v.name, '賽事名'),
+    name: text(v.name, '賽事名'),
     createdAt: num(v.createdAt, '建立時間'),
     updatedAt: num(v.updatedAt, '更新時間'),
     players,

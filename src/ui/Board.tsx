@@ -5,9 +5,10 @@ import { matchScore, matchWinnerId } from '../engine/rules'
 import { computeStandings, isTournamentComplete } from '../engine/standings'
 import { Standings } from './components/Standings'
 import { NotFound } from './Setup'
+import type { StandingRow } from '../engine/types'
 
 /**
- * 投屏模式：接電視／全螢幕俾一班人企喺度睇。
+ * 電視模式：接電視／全螢幕俾一班人企喺度睇。
  * 燈熄咗 —— 深色底，因為電視多數擺喺場地暗啲嘅角落，
  * 而主持人部機仍然係淺色（商場光猛）。同一個 token 系統，倒轉一次。
  */
@@ -40,7 +41,7 @@ export function Board({ id }: { id: string }) {
       ) : (
         <section className="board__now chamfer" style={{ gridTemplateColumns: '1fr' }}>
           <div className="board__who" style={{ textAlign: 'center' }}>
-            {complete ? `打完喇 · 冠軍 ${rows[0]?.name ?? ''}` : '仲未排賽程'}
+            {complete ? `打完喇 · 冠軍 ${championLine(rows)}` : '仲未排賽程'}
           </div>
         </section>
       )}
@@ -80,4 +81,15 @@ export function Board({ id }: { id: string }) {
       </a>
     </div>
   )
+}
+
+/**
+ * 第一位可以有幾個人並列。原本淨係讀 rows[0]，
+ * 即係喺成班人面前照住個大螢幕，用名字排序隨機捧咗一個做冠軍。
+ */
+function championLine(rows: StandingRow[]): string {
+  const top = rows.filter((r) => r.rank === 1)
+  if (top.length === 0) return ''
+  if (top.length === 1) return top[0]!.name
+  return `${top.map((r) => r.name).join('、')}（並列）`
 }

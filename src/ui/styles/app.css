@@ -54,9 +54,23 @@ table {
   border-collapse: collapse;
 }
 
+/*
+  預設用真 outline。切角嘅嘢先例外 —— clip-path 會剪走 outline，
+  所以嗰啲改用 inset box-shadow 頂上。
+  之前呢個 inset 寫法係全域，令冇背景嘅純文字連結（例如「返主頁」）
+  撳 Tab 過去乜都睇唔到。
+*/
 :focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.chamfer:focus-visible,
+.chamfer-sm:focus-visible,
+.finishbtn:focus-visible,
+.tcard:focus-visible {
   outline: 0;
-  box-shadow: inset 0 0 0 3px var(--ink), inset 0 0 0 6px var(--floor);
+  box-shadow: inset 0 0 0 3px var(--ink), inset 0 0 0 6px var(--slab);
 }
 
 .sr-only {
@@ -206,7 +220,7 @@ table {
   text-align: center;
   gap: var(--sp-2);
   padding: var(--sp-3) var(--sp-5);
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge);
   background: var(--slab);
   color: var(--ink);
   font-size: var(--step-0);
@@ -257,6 +271,18 @@ table {
 .btn--danger:focus-visible {
   background: var(--red-wash);
   color: var(--red);
+}
+
+/* 撳咗一次、等緊第二次確認。 */
+.btn--armed {
+  background: var(--red);
+  color: var(--on-red);
+}
+
+.btn--armed:hover,
+.btn--armed:focus-visible {
+  background: var(--red-deep);
+  color: var(--on-red);
 }
 
 .btnrow {
@@ -310,7 +336,7 @@ table {
 .tcard {
   display: block;
   padding: var(--sp-4);
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge);
   background: var(--slab);
   color: inherit;
   text-align: left;
@@ -402,7 +428,7 @@ table {
 .input {
   width: 100%;
   padding: var(--sp-3) var(--sp-4);
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge);
   background: var(--slab);
   font-size: var(--step-1);
   font-variation-settings: 'wdth' 100, 'wght' 600;
@@ -423,7 +449,7 @@ table {
   align-items: center;
   gap: var(--sp-3);
   padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3);
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge);
   background: var(--slab);
 }
 
@@ -768,7 +794,9 @@ table {
   text-align: right;
 }
 
-.stand th {
+/* 一定要 thead：選手名嗰格係 <th scope="row">，唔限定 thead 嘅話
+   佢會跟埋欄名嘅樣 —— 11px 淺灰，喺電視上面根本睇唔到。 */
+.stand thead th {
   color: var(--ink-soft);
   font-size: var(--step--2);
   font-variation-settings: 'wdth' 80, 'wght' 700;
@@ -800,7 +828,7 @@ table {
 }
 
 .stand tr[data-lead='true'] .stand__rank {
-  color: var(--gold);
+  color: var(--gold-text);
 }
 
 .stand__tie {
@@ -813,7 +841,7 @@ table {
 
 .tablewrap {
   overflow-x: auto;
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge);
 }
 
 /* 矩陣人少嘅時候唔好扯到成頁咁闊，跟返個表本身嘅闊度。 */
@@ -907,7 +935,7 @@ table {
   gap: var(--sp-3);
   width: 100%;
   padding: var(--sp-3);
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge);
   border-bottom: 0;
   background: var(--slab);
   color: inherit;
@@ -958,7 +986,7 @@ table {
 }
 
 .mrow__score--live {
-  color: var(--gold);
+  color: var(--gold-text);
 }
 
 /* ── 轉盤（招牌）─────────────────────────────────────────── */
@@ -1033,7 +1061,7 @@ table {
   text-align: center;
 }
 
-/* ── 投屏模式 ───────────────────────────────────────────── */
+/* ── 電視模式 ───────────────────────────────────────────── */
 
 .board {
   display: flex;
@@ -1104,12 +1132,13 @@ table {
   font-size: var(--step-2);
 }
 
+/* 電視版唯一一粒掣。收得太細聲會變成得 1.5:1 對比，睇唔到。 */
 .board__exit {
   position: fixed;
   right: var(--sp-4);
   bottom: var(--sp-4);
   z-index: 20;
-  opacity: 0.25;
+  opacity: 0.7;
 }
 
 .board__exit:hover,
@@ -1171,8 +1200,19 @@ table {
     padding: var(--sp-3) var(--sp-2);
   }
 
+  /* 只可以郁 block 軸。用 padding 簡寫會連 .side--blue / .side--red
+     嘅埋牆邊留白一齊清走，啲入分掣就會俾中間條斜線切到。 */
   .side {
-    padding: var(--sp-3) var(--sp-3) var(--sp-4);
+    padding-block: var(--sp-3) var(--sp-4);
+    padding-inline: var(--sp-3);
+  }
+
+  .side--blue {
+    padding-right: calc(var(--slant) + var(--sp-3));
+  }
+
+  .side--red {
+    padding-left: calc(var(--slant) + var(--sp-3));
   }
 
   .finishbtn {

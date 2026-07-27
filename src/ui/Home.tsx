@@ -136,7 +136,7 @@ function TournamentCard({ summary }: { summary: Summary }) {
   return (
     <a className="tcard chamfer" href={target}>
       <div className="tcard__top">
-        <span className="tcard__name">{summary.name}</span>
+        <span className="tcard__name">{summary.name || '未命名賽事'}</span>
         <span className="tcard__meta u-tab">{formatWhen(summary.updatedAt)}</span>
       </div>
       <div className="tcard__bar">

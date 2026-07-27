@@ -5,7 +5,8 @@ const TABS: { name: Route['name']; label: string }[] = [
   { name: 'schedule', label: '賽程' },
   { name: 'table', label: '排名' },
   { name: 'matrix', label: '矩陣' },
-  { name: 'board', label: '投屏' },
+  // 唔用「投屏」—— 嗰個係大陸講法，同成個介面嘅廣東話口語唔夾。
+  { name: 'board', label: '電視' },
 ]
 
 export function TopBar({ id, name, current }: { id: string; name: string; current: Route['name'] }) {
