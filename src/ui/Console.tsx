@@ -7,6 +7,7 @@ import {
   FINISH_ORDER,
   FINISH_POINTS,
   MATCH_TARGET,
+  isReady,
   matchScore,
   matchWinnerId,
 } from '../engine/rules'
@@ -15,6 +16,7 @@ import { bracketRoundName, clearDownstream, downstreamWithScores, propagate, tot
 import { groupStageComplete, hasBracket, nextPlayable } from '../engine/tournament'
 import { downloadJson } from '../lib/download'
 import { store } from '../storage/browserStore'
+import { GoShotButton } from './components/GoShot'
 import { TopBar } from './components/TopBar'
 import { NotFound } from './Setup'
 import type { FinishType, Match, Tournament } from '../engine/types'
@@ -186,6 +188,9 @@ function ConsoleBody({
             onRecord={record}
           />
         </div>
+
+        {/* 呢場打完咗就冇嘢好開，等緊上場對手嗰啲仲未知邊個打邊個。 */}
+        {winnerId === null && isReady(match) && <GoShotButton />}
 
         {error !== null && (
           <p className="note note--bad" role="alert">
