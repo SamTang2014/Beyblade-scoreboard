@@ -54,6 +54,21 @@ export function Table({ id }: { id: string }) {
           </div>
         )}
 
+        {hasBracketStage && champName === null && isTournamentComplete(tournament.matches) && (
+          <div className="verdict chamfer">
+            <div>
+              <span className="u-eyebrow">
+                {tournament.mode === 'poolsThenKnockout' ? '小組賽打完喇' : '循環打完喇'}
+              </span>
+              <div className="verdict__who">等緊砌籤表</div>
+              <span className="u-eyebrow">籤表打完先有冠軍</span>
+            </div>
+            <a className="btn btn--primary btn--big chamfer" href={`#/t/${id}/bracket`}>
+              去砌籤表
+            </a>
+          </div>
+        )}
+
         {roundRobinChamp !== undefined && (
           <div className="verdict chamfer">
             <div>

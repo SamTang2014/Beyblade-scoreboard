@@ -34,6 +34,7 @@ export function Board({ id }: { id: string }) {
     tournament.mode === 'poolsThenKnockout' && tournament.poolCount !== null
       ? poolStandings(tournament.players, tournament.matches, tournament.poolCount)
       : null
+  const champText = complete ? championLine(tournament, rows) : ''
 
   return (
     <div className="board">
@@ -48,7 +49,11 @@ export function Board({ id }: { id: string }) {
       ) : (
         <section className="board__now chamfer" style={{ gridTemplateColumns: '1fr' }}>
           <div className="board__who" style={{ textAlign: 'center' }}>
-            {complete ? `打完喇 · 冠軍 ${championLine(tournament, rows)}` : '仲未排賽程'}
+            {!complete
+              ? '仲未排賽程'
+              : champText !== ''
+                ? `打完喇 · 冠軍 ${champText}`
+                : '打完喇 · 等緊砌籤表'}
           </div>
         </section>
       )}
