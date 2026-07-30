@@ -655,14 +655,15 @@ describe('逐組排賽程', () => {
     }
   })
 
-  it('同一輪入面按組別 A→B→C 編次序', () => {
+  it('同一輪入面按組別 A→B→C 編次序，同組嘅連住一齊', () => {
     const roster = drawn(12, 3)
     const poolOf = new Map(roster.map((p) => [p.id, p.pool!]))
     const first = buildPoolSchedule([], roster, 3)
       .filter((m) => m.round === 1)
       .sort((x, y) => x.order - y.order)
-    expect(first.map((m) => m.order)).toEqual([1, 2, 3])
-    expect(first.map((m) => poolOf.get(m.aId!))).toEqual([1, 2, 3])
+    // 每組 4 個人 → 每組每輪 2 場，3 組加埋第 1 輪就 6 場。
+    expect(first.map((m) => m.order)).toEqual([1, 2, 3, 4, 5, 6])
+    expect(first.map((m) => poolOf.get(m.aId!))).toEqual([1, 1, 2, 2, 3, 3])
   })
 
   it('遲到加人：補返嗰組嘅新場次，打咗嘅一場都唔郁', () => {
