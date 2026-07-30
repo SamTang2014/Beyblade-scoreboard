@@ -63,7 +63,7 @@ export function Setup({ id }: { id: string }) {
       setWarning('至少要有 2 個人先排到賽程。')
       return
     }
-    if (!canStart(tournament.mode, players.length, tournament.cutSize)) {
+    if (!canStart(tournament)) {
       const options = cutOptions(players.length)
       setWarning(
         tournament.cutSize !== null && !options.includes(tournament.cutSize)
@@ -72,7 +72,10 @@ export function Setup({ id }: { id: string }) {
       )
       return
     }
-    update((t) => ({ ...t, matches: startTournament(t, Math.random) }))
+    update((t) => {
+      const started = startTournament(t, Math.random)
+      return { ...t, players: started.players, matches: started.matches }
+    })
     go(`#/t/${id}`)
   }
 
