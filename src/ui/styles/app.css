@@ -1504,3 +1504,18 @@ table {
     font-size: var(--step-1);
   }
 }
+
+/* 名單入面嘅組別章。細細粒，唔搶「除名」粒掣。 */
+.roster__pool {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.6em;
+  padding: 0.1em 0.35em;
+  margin-inline-start: var(--sp-2);
+  font-size: var(--step--2);
+  font-variation-settings: 'wdth' 100, 'wght' 700;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+  background: var(--floor-sunk);
+  border: 1px solid var(--line);
+}

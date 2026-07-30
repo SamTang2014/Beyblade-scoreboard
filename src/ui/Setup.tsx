@@ -3,6 +3,7 @@ import { useTournament } from '../storage/browserStore'
 import { totalMatches, totalRounds } from '../engine/schedule'
 import { bracketRounds, byeCount } from '../engine/bracket'
 import { MODE_HINT, MODE_LABEL, canStart, cutOptions, startTournament } from '../engine/tournament'
+import { advanceOptions, poolLabel, poolOptions, poolSizes } from '../engine/pools'
 import { newId } from '../lib/id'
 import { go } from '../lib/router'
 import { TopBar } from './components/TopBar'
@@ -64,6 +65,14 @@ export function Setup({ id }: { id: string }) {
       return
     }
     if (!canStart(tournament)) {
+      if (tournament.mode === 'poolsThenKnockout') {
+        setWarning(
+          poolOptions(players.length).length === 0
+            ? '至少要有 4 個人先分到組（每組最少 2 個人）。'
+            : '揀埋分幾多組同每組出幾多個，先排得到賽程。',
+        )
+        return
+      }
       const options = cutOptions(players.length)
       setWarning(
         tournament.cutSize !== null && !options.includes(tournament.cutSize)
@@ -80,7 +89,16 @@ export function Setup({ id }: { id: string }) {
   }
 
   const count = players.length
-  const newMatches = totalMatches(count) - tournament.matches.length
+  const pools = poolOptions(count)
+  // 預設 2 組、每組出 2 個；人數唔夠就用揀得到嘅第一個。
+  const defaultPools = pools.includes(2) ? 2 : (pools[0] ?? null)
+  const advances = defaultPools === null ? [] : advanceOptions(count, defaultPools)
+  const defaultAdvance = advances.includes(2) ? 2 : (advances[0] ?? null)
+  const newMatches =
+    tournament.mode === 'poolsThenKnockout' && tournament.poolCount !== null
+      ? poolSizes(count, tournament.poolCount).reduce((n, s) => n + totalMatches(s), 0) -
+        tournament.matches.filter((m) => m.stage === 'group').length
+      : totalMatches(count) - tournament.matches.length
 
   return (
     <>
@@ -107,7 +125,14 @@ export function Setup({ id }: { id: string }) {
         <div className="field">
           <span className="field__label">點打</span>
           <div className="modes">
-            {(['roundRobin', 'knockout', 'groupThenKnockout'] as TournamentMode[]).map((m) => (
+            {(
+              [
+                'roundRobin',
+                'knockout',
+                'groupThenKnockout',
+                'poolsThenKnockout',
+              ] as TournamentMode[]
+            ).map((m) => (
               <button
                 key={m}
                 className="mode chamfer-sm"
@@ -117,8 +142,11 @@ export function Setup({ id }: { id: string }) {
                   update((t) => ({
                     ...t,
                     mode: m,
-                    // 轉走「循環 + 淘汰」就冇入圍人數呢回事，唔好留住個舊值。
+                    // 轉走某個模式就冇咗嗰個模式嘅設定，唔好留住個舊值。
                     cutSize: m === 'groupThenKnockout' ? (t.cutSize ?? 4) : null,
+                    poolCount: m === 'poolsThenKnockout' ? (t.poolCount ?? defaultPools) : null,
+                    advancePerPool:
+                      m === 'poolsThenKnockout' ? (t.advancePerPool ?? defaultAdvance) : null,
                   }))
                 }
               >
@@ -171,6 +199,27 @@ export function Setup({ id }: { id: string }) {
           </div>
         )}
 
+        {tournament.mode === 'poolsThenKnockout' && (
+          <PoolSetup
+            count={count}
+            poolCount={tournament.poolCount}
+            advancePerPool={tournament.advancePerPool}
+            locked={alreadyStarted}
+            onPools={(n) =>
+              update((t) => {
+                // 改咗組數，原本嘅出線人數可能已經超出最細嗰組 —— 夾返落合法值。
+                const opts = advanceOptions(count, n)
+                const keep =
+                  t.advancePerPool !== null && opts.includes(t.advancePerPool)
+                    ? t.advancePerPool
+                    : (opts[opts.length - 1] ?? null)
+                return { ...t, poolCount: n, advancePerPool: keep }
+              })
+            }
+            onAdvance={(n) => update((t) => ({ ...t, advancePerPool: n }))}
+          />
+        )}
+
         <div className="field">
           <label className="field__label" htmlFor="pname">
             有邊個打
@@ -221,6 +270,11 @@ export function Setup({ id }: { id: string }) {
                   <div className="roster__row chamfer-sm" key={p.id}>
                     <span className="roster__seat">{i + 1}</span>
                     <span className="roster__name">{p.name}</span>
+                    {p.pool !== null && (
+                      <span className="roster__pool" aria-label={`${poolLabel(p.pool)} 組`}>
+                        {poolLabel(p.pool)}
+                      </span>
+                    )}
                     {isArmed && (
                       <button className="btn btn--quiet" onClick={() => setArmed(null)}>
                         算數
@@ -243,9 +297,22 @@ export function Setup({ id }: { id: string }) {
           </div>
         )}
 
-        <Preview mode={tournament.mode} count={count} cutSize={tournament.cutSize} />
+        <Preview
+          mode={tournament.mode}
+          count={count}
+          cutSize={tournament.cutSize}
+          poolCount={tournament.poolCount}
+          advancePerPool={tournament.advancePerPool}
+        />
 
-        {alreadyStarted && newMatches > 0 && (
+        {alreadyStarted && tournament.mode === 'poolsThenKnockout' && (
+          <p className="note">
+            <span>·</span>
+            <span>賽事已經開咗波。而家加嘅人會入人最少嗰組，唔會重新抽組。</span>
+          </p>
+        )}
+
+        {alreadyStarted && newMatches > 0 && tournament.mode !== 'poolsThenKnockout' && (
           <p className="note">
             <span>·</span>
             <span>
@@ -279,12 +346,28 @@ function Preview({
   mode,
   count,
   cutSize,
+  poolCount,
+  advancePerPool,
 }: {
   mode: TournamentMode
   count: number
   cutSize: number | null
+  poolCount: number | null
+  advancePerPool: number | null
 }) {
   const cells: { num: number; label: string }[] = [{ num: count, label: '個人' }]
+
+  if (mode === 'poolsThenKnockout' && poolCount !== null) {
+    const sizes = poolSizes(count, poolCount)
+    const groupGames = sizes.reduce((n, s) => n + totalMatches(s), 0)
+    cells.push({ num: poolCount, label: '組' })
+    cells.push({ num: groupGames, label: '場小組賽' })
+    if (advancePerPool !== null) {
+      const inBracket = poolCount * advancePerPool
+      cells.push({ num: inBracket, label: '人入籤表' })
+      if (inBracket >= 2) cells.push({ num: bracketRounds(inBracket), label: '輪淘汰' })
+    }
+  }
 
   if (mode === 'roundRobin' || mode === 'groupThenKnockout') {
     cells.push({ num: totalRounds(count), label: '輪循環' })
@@ -298,7 +381,8 @@ function Preview({
     }
   }
 
-  const oddRoundRobin = mode !== 'knockout' && count % 2 === 1 && count >= 3
+  const oddRoundRobin =
+    (mode === 'roundRobin' || mode === 'groupThenKnockout') && count % 2 === 1 && count >= 3
   const byes = mode === 'knockout' ? byeCount(count) : 0
 
   return (
@@ -328,6 +412,95 @@ function Preview({
           </span>
         </p>
       )}
+    </>
+  )
+}
+
+/** 分幾多組 + 每組出幾多個。兩行 chip，同「入圍人數」嗰行同一個樣。 */
+function PoolSetup({
+  count,
+  poolCount,
+  advancePerPool,
+  locked,
+  onPools,
+  onAdvance,
+}: {
+  count: number
+  poolCount: number | null
+  advancePerPool: number | null
+  locked: boolean
+  onPools: (n: number) => void
+  onAdvance: (n: number) => void
+}) {
+  const pools = poolOptions(count)
+
+  if (pools.length === 0) {
+    return (
+      <div className="field">
+        <span className="field__label">分幾多組</span>
+        <p className="note note--bad">
+          <span>⚠</span>
+          <span>至少要有 4 個人先分到組（每組最少 2 個人）。</span>
+        </p>
+      </div>
+    )
+  }
+
+  const advances = poolCount === null ? [] : advanceOptions(count, poolCount)
+  const sizes = poolCount === null ? [] : poolSizes(count, poolCount)
+  const qualifiers = poolCount === null || advancePerPool === null ? 0 : poolCount * advancePerPool
+
+  return (
+    <>
+      <div className="field">
+        <span className="field__label">分幾多組</span>
+        <div className="chips">
+          {pools.map((n) => (
+            <button
+              key={n}
+              className="chip chamfer-sm"
+              aria-pressed={poolCount === n}
+              disabled={locked}
+              onClick={() => onPools(n)}
+            >
+              {n} 組
+            </button>
+          ))}
+        </div>
+        {sizes.length > 0 && (
+          <p className="note">
+            <span>·</span>
+            <span>
+              {count} 個人分 {poolCount} 組 = {sizes.join(' / ')} 人。抽籤決定邊個同邊個一組。
+            </span>
+          </p>
+        )}
+      </div>
+
+      <div className="field">
+        <span className="field__label">每組出幾多個入籤表</span>
+        <div className="chips">
+          {advances.map((n) => (
+            <button
+              key={n}
+              className="chip chamfer-sm"
+              aria-pressed={advancePerPool === n}
+              disabled={locked}
+              onClick={() => onAdvance(n)}
+            >
+              頭 {n} 名
+            </button>
+          ))}
+        </div>
+        {qualifiers > 0 && (
+          <p className="note">
+            <span>·</span>
+            <span>
+              {qualifiers} 個人入籤表。交叉搵：A 組第 1 對 B 組第 2，同組嘅唔會一入淘汰就撞返。
+            </span>
+          </p>
+        )}
+      </div>
     </>
   )
 }
