@@ -3,6 +3,7 @@ import { generateBracket } from './bracket'
 import {
   advanceOptions,
   assignLatecomers,
+  avoidSamePool,
   buildPoolSchedule,
   drawPools,
   poolLabel,
@@ -378,11 +379,12 @@ describe('交叉種子', () => {
     expect(run(ids, 4, 2).clashes).toBe(0)
   })
 
-  it('2–4 組 × 每組出 1／2／3：逐個組合首圈都係零同組內戰', () => {
-    for (const k of [2, 3, 4]) {
+  it('2–6 組 × 每組出 1／2／3：逐個組合首圈都係零同組內戰', () => {
+    // 上限跟 `poolOptions` 開得出嘅最多組數（6），唔係求其揀個數。
+    for (const k of [2, 3, 4, 5, 6]) {
       for (const advance of [1, 2, 3]) {
         // 每組砌 3 個人，咁樣出 1／2／3 個都夠。
-        const ids = ['a', 'b', 'c', 'd']
+        const ids = ['a', 'b', 'c', 'd', 'e', 'f']
           .slice(0, k)
           .flatMap((g) => [1, 2, 3].map((n) => `${g}${n}`))
         expect(run(ids, k, advance).clashes, `${k} 組出 ${advance} 個`).toBe(0)
@@ -402,5 +404,72 @@ describe('交叉種子', () => {
   it('入圍人數 = 組數 × 每組出幾多個', () => {
     const ids = ['a', 'b', 'c'].flatMap((g) => [1, 2, 3].map((n) => `${g}${n}`))
     expect(run(ids, 3, 2).seeds).toHaveLength(6)
+  })
+
+  /**
+   * 直接督 `avoidSamePool`，逼佢行「揀咗個候選、發現唔合格、換返轉頭」條路。
+   *
+   * 由 `poolSeedOrder` 出嘅真實組合入面，撞到組嗰陣**第一個**同梯次候選就已經合格，
+   * 所以「換返轉頭」嗰段一直冇跑過。呢度手砌一副種子逼佢跑：
+   * 換返轉頭寫錯次序嘅話，個陣列會多咗一個人、少咗一個人，係靜靜雞爛嘅。
+   */
+  describe('修補 pass 揀錯候選要換返轉頭', () => {
+    // 8 個位，位序 [1,8,4,5,2,7,3,6] → 首圈四對：(1,8)、(4,5)、(2,7)、(3,6)。
+    const seeds = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8']
+    // s1／s5／s8 全部第 1 組 —— 咁 (1,8) 一開波就撞，而且第一個候選 s5 換極都仲係撞。
+    const pools = new Map<string, number>([
+      ['s1', 1],
+      ['s2', 2],
+      ['s3', 3],
+      ['s4', 4],
+      ['s5', 1],
+      ['s6', 2],
+      ['s7', 3],
+      ['s8', 1],
+    ])
+    const poolOf = new Map<string, number | null>(pools)
+    // 種子 1–4 上梯次、5–8 下梯次，所以 s8 淨係換得 s5／s6／s7。
+    const tierOf = new Map<string, number>(
+      seeds.map((id, i): [string, number] => [id, i < 4 ? 0 : 1]),
+    )
+
+    it('第一個候選唔合格就退返貨，再試下一個', () => {
+      // (1,8) 撞組 → keep=1、move=8，同梯次候選由細到大係 5、6、7。
+      // c=5：s5 上到第 8 位一樣係第 1 組，(1,8) 照撞 → 唔合格，換返轉頭。
+      // c=6：換完 (1,8) 係 s1 對 s6、(3,6) 係 s3 對 s8，兩對都清 → 成事。
+      // s8 落咗第 6 位而唔係第 5 位，就係「c=5 試過而且退咗貨」嘅憑據。
+      expect(avoidSamePool(seeds, poolOf, tierOf)).toEqual([
+        's1',
+        's2',
+        's3',
+        's4',
+        's5',
+        's8',
+        's7',
+        's6',
+      ])
+    })
+
+    it('換返轉頭唔會整散個陣列：出嚟仲係原本嗰批人，冇多冇少', () => {
+      const out = avoidSamePool(seeds, poolOf, tierOf)
+      expect([...out].sort()).toEqual([...seeds].sort())
+      expect(new Set(out).size).toBe(seeds.length)
+    })
+
+    it('梯次冇走位', () => {
+      const out = avoidSamePool(seeds, poolOf, tierOf)
+      expect(out.slice(0, 4).every((id) => tierOf.get(id) === 0)).toBe(true)
+      expect(out.slice(4).every((id) => tierOf.get(id) === 1)).toBe(true)
+    })
+
+    it('收工之後首圈零同組內戰', () => {
+      expect(samePoolFirstRound(avoidSamePool(seeds, poolOf, tierOf), pools)).toBe(0)
+    })
+
+    it('唔會郁到原本個 seeds 陣列', () => {
+      const before = [...seeds]
+      avoidSamePool(seeds, poolOf, tierOf)
+      expect(seeds).toEqual(before)
+    })
   })
 })
