@@ -6,6 +6,13 @@ export interface Player {
   name: string
   /** 加入次序，用嚟決定圓周法入面嘅固定位置。加人之後唔會變。 */
   seat: number
+  /**
+   * 第幾組，1 起計（1 = A 組）。null = 未分組，或者根本唔係小組賽模式。
+   *
+   * 組別擺喺選手身上而唔係賽事身上擺個 id 陣列 —— 除名一個人佢就自動離組，
+   * 唔使另外去個陣列度剷返佢。漏咗剷就會排出一場「對住一個唔存在嘅人」嘅比賽。
+   */
+  pool: number | null
 }
 
 /** 一 round 嘅結果。一場對戰由多個 round 組成。 */
@@ -43,7 +50,11 @@ export interface Match {
   rounds: RoundResult[]
 }
 
-export type TournamentMode = 'roundRobin' | 'knockout' | 'groupThenKnockout'
+export type TournamentMode =
+  | 'roundRobin'
+  | 'knockout'
+  | 'groupThenKnockout'
+  | 'poolsThenKnockout'
 
 export interface Tournament {
   id: string
@@ -53,6 +64,10 @@ export interface Tournament {
   mode: TournamentMode
   /** groupThenKnockout 專用：幾多人入籤表。其他模式係 null。 */
   cutSize: number | null
+  /** poolsThenKnockout 專用：分幾多組。其他模式係 null。 */
+  poolCount: number | null
+  /** poolsThenKnockout 專用：每組出幾多個入籤表。其他模式係 null。 */
+  advancePerPool: number | null
   players: Player[]
   matches: Match[]
 }

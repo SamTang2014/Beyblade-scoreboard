@@ -13,6 +13,7 @@ const DEMO: Player[] = ['阿明', '阿強', '阿華', '小美', '阿聰'].map((n
   id: `demo${seat}`,
   name,
   seat,
+  pool: null,
 }))
 
 export function Home() {

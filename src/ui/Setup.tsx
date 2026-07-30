@@ -28,7 +28,7 @@ export function Setup({ id }: { id: string }) {
       return
     }
     const seat = players.reduce((mx, p) => Math.max(mx, p.seat), -1) + 1
-    update((t) => ({ ...t, players: [...t.players, { id: newId(), name, seat }] }))
+    update((t) => ({ ...t, players: [...t.players, { id: newId(), name, seat, pool: null }] }))
     setDraft('')
     setWarning(null)
     nameBox.current?.focus()

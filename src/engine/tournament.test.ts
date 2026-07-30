@@ -15,7 +15,12 @@ import { matchStatus, matchWinnerId } from './rules'
 import type { Match, Player, Tournament, TournamentMode } from './types'
 
 function players(n: number): Player[] {
-  return Array.from({ length: n }, (_, i) => ({ id: `p${i + 1}`, name: `選手${i + 1}`, seat: i }))
+  return Array.from({ length: n }, (_, i) => ({
+    id: `p${i + 1}`,
+    name: `選手${i + 1}`,
+    seat: i,
+    pool: null,
+  }))
 }
 
 function tournament(mode: TournamentMode, n: number, cutSize: number | null = null): Tournament {
@@ -26,6 +31,8 @@ function tournament(mode: TournamentMode, n: number, cutSize: number | null = nu
     updatedAt: 0,
     mode,
     cutSize,
+    poolCount: null,
+    advancePerPool: null,
     players: players(n),
     matches: [],
   }

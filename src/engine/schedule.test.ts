@@ -17,6 +17,7 @@ function players(n: number): Player[] {
     id: `p${i + 1}`,
     name: `選手${i + 1}`,
     seat: i,
+    pool: null,
   }))
 }
 
@@ -180,7 +181,7 @@ describe('中途加人', () => {
 
   it('已排嘅場次原封不動，連入咗嘅分都喺返度', () => {
     const before = halfPlayed()
-    const after = mergeSchedule(before, [...base, { id: 'p5', name: '新仔', seat: 4 }])
+    const after = mergeSchedule(before, [...base, { id: 'p5', name: '新仔', seat: 4, pool: null }])
 
     for (const old of before) {
       const found = after.find((m) => m.id === old.id)
@@ -194,7 +195,7 @@ describe('中途加人', () => {
   })
 
   it('新人只補未有過嘅配對，一場都唔多', () => {
-    const after = mergeSchedule(halfPlayed(), [...base, { id: 'p5', name: '新仔', seat: 4 }])
+    const after = mergeSchedule(halfPlayed(), [...base, { id: 'p5', name: '新仔', seat: 4, pool: null }])
     expect(after).toHaveLength(totalMatches(5))
 
     const fresh = after.filter((m) => !baseSchedule.some((o) => o.id === m.id))
@@ -204,7 +205,7 @@ describe('中途加人', () => {
 
   it('新場次全部排喺舊場次後面', () => {
     const before = halfPlayed()
-    const after = mergeSchedule(before, [...base, { id: 'p5', name: '新仔', seat: 4 }])
+    const after = mergeSchedule(before, [...base, { id: 'p5', name: '新仔', seat: 4, pool: null }])
     const lastOldRound = Math.max(...before.map((m) => m.round))
     const fresh = after.filter((m) => !before.some((o) => o.id === m.id))
     for (const m of fresh) expect(m.round).toBeGreaterThan(lastOldRound)
@@ -213,8 +214,8 @@ describe('中途加人', () => {
   it('補完之後同一輪仍然冇人打兩場', () => {
     const after = mergeSchedule(halfPlayed(), [
       ...base,
-      { id: 'p5', name: '新仔', seat: 4 },
-      { id: 'p6', name: '新女', seat: 5 },
+      { id: 'p5', name: '新仔', seat: 4, pool: null },
+      { id: 'p6', name: '新女', seat: 5, pool: null },
     ])
     expect(after).toHaveLength(totalMatches(6))
     for (const r of new Set(after.map((m) => m.round))) {
@@ -226,8 +227,8 @@ describe('中途加人', () => {
   it('一次過加兩個人，兩個人之間嗰場都會排到', () => {
     const after = mergeSchedule(baseSchedule, [
       ...base,
-      { id: 'p5', name: '新仔', seat: 4 },
-      { id: 'p6', name: '新女', seat: 5 },
+      { id: 'p5', name: '新仔', seat: 4, pool: null },
+      { id: 'p6', name: '新女', seat: 5, pool: null },
     ])
     expect(after.some((m) => m.id === matchKey('p5', 'p6'))).toBe(true)
   })
@@ -259,7 +260,7 @@ describe('係咪乾淨嘅圓周法排程', () => {
 
   it('中途加咗人就唔再係 —— 轉盤同賽程會對唔上，所以要收起', () => {
     const base = players(4)
-    const ps = [...base, { id: 'p5', name: '新仔', seat: 4 }]
+    const ps = [...base, { id: 'p5', name: '新仔', seat: 4, pool: null }]
     const merged = mergeSchedule(generateSchedule(base), ps)
     expect(isPureCircleSchedule(merged, ps)).toBe(false)
   })

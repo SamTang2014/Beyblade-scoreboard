@@ -14,12 +14,14 @@ export const MODE_LABEL: Record<TournamentMode, string> = {
   roundRobin: '單循環',
   knockout: '純淘汰',
   groupThenKnockout: '循環 + 淘汰',
+  poolsThenKnockout: '小組 + 淘汰',
 }
 
 export const MODE_HINT: Record<TournamentMode, string> = {
   roundRobin: '人人都要同其他所有人打一次，分數最高嗰個贏。',
   knockout: '隨機抽籤，輸咗就出局，一路打到剩返一個。',
   groupThenKnockout: '先打晒單循環，成績最好嗰幾個再打淘汰賽爭冠軍。',
+  poolsThenKnockout: '分幾組各自循環，每組出線嗰幾個再打淘汰賽爭冠軍。',
 }
 
 /** 呢個模式而家排唔排到賽程。 */
@@ -48,6 +50,9 @@ export function startTournament(t: Tournament, rng: () => number): Match[] {
       return mergeSchedule(t.matches, t.players)
     case 'knockout':
       return propagate(generateBracket(drawOrder(t.players, rng)))
+    case 'poolsThenKnockout':
+      // 小組排程要用分組引擎（另一個 task 先加），呢度未接得埋。
+      throw new Error('小組賽模式仲未做好，未開得到波。')
   }
 }
 

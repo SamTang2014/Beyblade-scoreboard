@@ -4,7 +4,12 @@ import { matchKey } from './rules'
 import type { Match, Player, RoundResult } from './types'
 
 function players(n: number): Player[] {
-  return Array.from({ length: n }, (_, i) => ({ id: `p${i + 1}`, name: `選手${i + 1}`, seat: i }))
+  return Array.from({ length: n }, (_, i) => ({
+    id: `p${i + 1}`,
+    name: `選手${i + 1}`,
+    seat: i,
+    pool: null,
+  }))
 }
 
 /** 一場打完嘅對戰：贏家 4 分，輸家 `loserPts` 分（0-3）。 */

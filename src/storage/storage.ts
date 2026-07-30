@@ -137,6 +137,8 @@ export function createStore({ kv, now = Date.now, newId = defaultNewId }: StoreO
         updatedAt: stamp,
         mode: 'roundRobin',
         cutSize: null,
+        poolCount: null,
+        advancePerPool: null,
         players: [],
         matches: [],
       }
@@ -229,6 +231,8 @@ export function parseTournament(v: unknown): Tournament {
       id: str(p.id, `第 ${i + 1} 個選手嘅 id`),
       name: str(p.name, `第 ${i + 1} 個選手個名`),
       seat: num(p.seat, `第 ${i + 1} 個選手嘅位置`),
+      // 舊檔冇 pool，一律當未分組。
+      pool: positiveInt(p.pool),
     }
   })
 
@@ -279,6 +283,16 @@ export function parseTournament(v: unknown): Tournament {
     }
   }
 
+  const poolCount = positiveInt(v.poolCount)
+  const advancePerPool = positiveInt(v.advancePerPool)
+
+  // 組別超出咗組數就當未分組 —— 下次排賽程會塞佢入人最少嗰組，
+  // 好過排出一場指住一個唔存在嘅組嘅比賽。
+  const grouped =
+    poolCount === null
+      ? players.map((p) => (p.pool === null ? p : { ...p, pool: null }))
+      : players.map((p) => (p.pool !== null && p.pool > poolCount ? { ...p, pool: null } : p))
+
   return {
     id: str(v.id, '賽事 id'),
     name: text(v.name, '賽事名'),
@@ -287,12 +301,19 @@ export function parseTournament(v: unknown): Tournament {
     // 舊檔案冇 mode，一律當單循環 —— 之前存嘅賽事唔會爛。
     mode: parseMode(v.mode),
     cutSize: typeof v.cutSize === 'number' && Number.isFinite(v.cutSize) ? v.cutSize : null,
-    players,
+    poolCount,
+    advancePerPool,
+    players: grouped,
     matches,
   }
 }
 
-const MODES: TournamentMode[] = ['roundRobin', 'knockout', 'groupThenKnockout']
+const MODES: TournamentMode[] = [
+  'roundRobin',
+  'knockout',
+  'groupThenKnockout',
+  'poolsThenKnockout',
+]
 
 function parseMode(v: unknown): TournamentMode {
   if (v === undefined || v === null) return 'roundRobin'
@@ -302,6 +323,11 @@ function parseMode(v: unknown): TournamentMode {
 
 function optionalStr(v: unknown): string | null {
   return typeof v === 'string' && v !== '' ? v : null
+}
+
+/** 1 起計嘅正整數，唔係就當冇。舊檔、爛值都行呢條路。 */
+function positiveInt(v: unknown): number | null {
+  return typeof v === 'number' && Number.isInteger(v) && v >= 1 ? v : null
 }
 
 /** 選手 id，或者 null（淘汰賽對手未定）。填咗就一定要喺名單度。 */

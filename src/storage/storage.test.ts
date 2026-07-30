@@ -4,6 +4,7 @@ import {
   StorageFullError,
   createStore,
   parseExportFile,
+  parseTournament,
   type KeyValueStore,
 } from './storage'
 import type { Tournament } from '../engine/types'
@@ -49,8 +50,8 @@ function withPlayers(t: Tournament): Tournament {
   return {
     ...t,
     players: [
-      { id: 'a', name: '阿明', seat: 0 },
-      { id: 'b', name: '阿強', seat: 1 },
+      { id: 'a', name: '阿明', seat: 0, pool: null },
+      { id: 'b', name: '阿強', seat: 1, pool: null },
     ],
     matches: [
       {
@@ -309,5 +310,71 @@ describe('匯入壞檔案', () => {
     const t = s.create('本身嗰場')
     expect(() => s.importJson('壞檔案')).toThrow()
     expect(s.get(t.id)).not.toBeNull()
+  })
+})
+
+describe('小組賽欄位', () => {
+  it('舊檔冇 pool / poolCount / advancePerPool 都讀得返', () => {
+    const t = parseTournament({
+      id: 't1',
+      name: '舊賽事',
+      createdAt: 1,
+      updatedAt: 2,
+      players: [{ id: 'a', name: '阿明', seat: 0 }],
+      matches: [],
+    })
+    expect(t.players[0]!.pool).toBeNull()
+    expect(t.poolCount).toBeNull()
+    expect(t.advancePerPool).toBeNull()
+  })
+
+  it('新欄位讀得返', () => {
+    const t = parseTournament({
+      id: 't1',
+      name: '小組賽',
+      createdAt: 1,
+      updatedAt: 2,
+      mode: 'poolsThenKnockout',
+      poolCount: 3,
+      advancePerPool: 2,
+      players: [
+        { id: 'a', name: '阿明', seat: 0, pool: 1 },
+        { id: 'b', name: '阿強', seat: 1, pool: 3 },
+      ],
+      matches: [],
+    })
+    expect(t.mode).toBe('poolsThenKnockout')
+    expect(t.poolCount).toBe(3)
+    expect(t.advancePerPool).toBe(2)
+    expect(t.players.map((p) => p.pool)).toEqual([1, 3])
+  })
+
+  it('組別超出咗組數就當未分組', () => {
+    const t = parseTournament({
+      id: 't1',
+      name: '爛檔',
+      createdAt: 1,
+      updatedAt: 2,
+      mode: 'poolsThenKnockout',
+      poolCount: 2,
+      advancePerPool: 1,
+      players: [
+        { id: 'a', name: '阿明', seat: 0, pool: 5 },
+        { id: 'b', name: '阿強', seat: 1, pool: 0 },
+        { id: 'c', name: '阿華', seat: 2, pool: 1.5 },
+      ],
+      matches: [],
+    })
+    expect(t.players.map((p) => p.pool)).toEqual([null, null, null])
+  })
+
+  it('新模式匯出入返都齊', () => {
+    const s = store()
+    const made = s.create('小組賽')
+    s.save({ ...made, mode: 'poolsThenKnockout', poolCount: 2, advancePerPool: 2 })
+    const back = parseExportFile(s.exportJson(made.id)).tournaments[0]!
+    expect(back.mode).toBe('poolsThenKnockout')
+    expect(back.poolCount).toBe(2)
+    expect(back.advancePerPool).toBe(2)
   })
 })
