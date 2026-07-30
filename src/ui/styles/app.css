@@ -923,6 +923,11 @@ table {
   color: var(--gold-text);
 }
 
+/* 小組賽出線線：線下面嗰啲人打唔到淘汰賽。 */
+.stand tr[data-cut] > * {
+  border-bottom: 2px solid var(--gold);
+}
+
 .stand__tie {
   margin-left: var(--sp-2);
   color: var(--ink-faint);
@@ -934,6 +939,13 @@ table {
 .tablewrap {
   overflow-x: auto;
   border: 1px solid var(--edge);
+}
+
+/* 逐組表格：闊就打橫排，窄就疊落去。 */
+.poolgrid {
+  display: grid;
+  gap: var(--sp-4);
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
 }
 
 /* 矩陣人少嘅時候唔好扯到成頁咁闊，跟返個表本身嘅闊度。 */

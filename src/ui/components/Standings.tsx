@@ -1,7 +1,19 @@
 import type { StandingRow } from '../../engine/types'
 
-/** 排名表。頭三個規則睇得出嚟，第 4 條（得失分差）都擺埋，等人查得到。 */
-export function Standings({ rows, compact = false }: { rows: StandingRow[]; compact?: boolean }) {
+/**
+ * 排名表。頭三個規則睇得出嚟，第 4 條（得失分差）都擺埋，等人查得到。
+ *
+ * `cutAfter` = 第幾名之後劃條出線線（小組賽用）。
+ */
+export function Standings({
+  rows,
+  compact = false,
+  cutAfter,
+}: {
+  rows: StandingRow[]
+  compact?: boolean
+  cutAfter?: number | undefined
+}) {
   if (rows.length === 0) {
     return <p className="empty">仲未有選手。</p>
   }
@@ -28,8 +40,12 @@ export function Standings({ rows, compact = false }: { rows: StandingRow[]; comp
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
-            <tr key={r.playerId} data-lead={r.rank === 1}>
+          {rows.map((r, i) => (
+            <tr
+              key={r.playerId}
+              data-lead={r.rank === 1}
+              data-cut={cutAfter !== undefined && i + 1 === cutAfter ? true : undefined}
+            >
               <td className="stand__rank">{r.rank}</td>
               <th className="stand__who" scope="row">
                 {r.name}

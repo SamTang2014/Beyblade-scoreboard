@@ -1,5 +1,6 @@
 import { useTournament } from '../storage/browserStore'
 import { matchKey, matchScore, matchStatus, matchWinnerId } from '../engine/rules'
+import { poolLabel, poolsOf } from '../engine/pools'
 import { TopBar } from './components/TopBar'
 import { NotFound } from './Setup'
 import type { Match, Player } from '../engine/types'
@@ -29,7 +30,10 @@ export function Matrix({ id }: { id: string }) {
     )
   }
 
-  const byKey = new Map(tournament.matches.map((m) => [m.id, m]))
+  const pools =
+    tournament.mode === 'poolsThenKnockout' && tournament.poolCount !== null
+      ? poolsOf(tournament.players, tournament.poolCount)
+      : null
 
   return (
     <>
@@ -40,42 +44,18 @@ export function Matrix({ id }: { id: string }) {
         mode={tournament.mode}
       />
       <div className="page page--wide stack">
-        <div className="tablewrap tablewrap--fit">
-          <table className="matrix">
-            <caption className="sr-only">
-              交叉得分矩陣。每格係橫行嗰個對縱列嗰個嘅比分。
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">　</th>
-                {players.map((p) => (
-                  <th key={p.id} scope="col">
-                    {p.name}
-                  </th>
-                ))}
-                <th scope="col">勝</th>
-              </tr>
-            </thead>
-            <tbody>
-              {players.map((row) => (
-                <tr key={row.id}>
-                  <th className="matrix__who" scope="row">
-                    {row.name}
-                  </th>
-                  {players.map((col) => (
-                    <Cell
-                      key={col.id}
-                      row={row}
-                      col={col}
-                      match={byKey.get(matchKey(row.id, col.id))}
-                    />
-                  ))}
-                  <td className="matrix__total u-tab">{winsOf(row.id, tournament.matches)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {pools === null ? (
+          <MatrixTable players={players} matches={tournament.matches} />
+        ) : (
+          pools.map((pool, i) => (
+            <section key={i}>
+              <h2 className="u-eyebrow" style={{ marginBottom: 'var(--sp-3)' }}>
+                {poolLabel(i + 1)} 組
+              </h2>
+              <MatrixTable players={pool} matches={tournament.matches} />
+            </section>
+          ))
+        )}
 
         <p className="note">
           <span>·</span>
@@ -83,8 +63,55 @@ export function Matrix({ id }: { id: string }) {
             每格係橫行嗰個嘅比分。粗體藍色 = 贏咗，灰色 = 輸咗，「·」= 仲未打。
           </span>
         </p>
+        {pools !== null && (
+          <p className="note">
+            <span>·</span>
+            <span>逐組畫 —— 唔同組嘅人根本冇對過，擺埋一張大表會成張都係空格。</span>
+          </p>
+        )}
       </div>
     </>
+  )
+}
+
+function MatrixTable({ players, matches }: { players: Player[]; matches: Match[] }) {
+  const byKey = new Map(matches.map((m) => [m.id, m]))
+
+  return (
+    <div className="tablewrap tablewrap--fit">
+      <table className="matrix">
+        <caption className="sr-only">交叉得分矩陣。每格係橫行嗰個對縱列嗰個嘅比分。</caption>
+        <thead>
+          <tr>
+            <th scope="col">　</th>
+            {players.map((p) => (
+              <th key={p.id} scope="col">
+                {p.name}
+              </th>
+            ))}
+            <th scope="col">勝</th>
+          </tr>
+        </thead>
+        <tbody>
+          {players.map((row) => (
+            <tr key={row.id}>
+              <th className="matrix__who" scope="row">
+                {row.name}
+              </th>
+              {players.map((col) => (
+                <Cell
+                  key={col.id}
+                  row={row}
+                  col={col}
+                  match={byKey.get(matchKey(row.id, col.id))}
+                />
+              ))}
+              <td className="matrix__total u-tab">{winsOf(row.id, matches)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
 

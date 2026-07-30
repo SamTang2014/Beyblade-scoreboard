@@ -3,9 +3,11 @@ import { useTournament } from '../storage/browserStore'
 import { inPlayOrder } from '../engine/schedule'
 import { matchScore, matchWinnerId } from '../engine/rules'
 import { computeStandings, isTournamentComplete } from '../engine/standings'
+import { bracketChampion } from '../engine/bracket'
+import { poolLabel, poolStandings } from '../engine/pools'
 import { Standings } from './components/Standings'
 import { NotFound } from './Setup'
-import type { StandingRow } from '../engine/types'
+import type { StandingRow, Tournament } from '../engine/types'
 
 /**
  * 電視模式：接電視／全螢幕俾一班人企喺度睇。
@@ -28,6 +30,10 @@ export function Board({ id }: { id: string }) {
   const complete = isTournamentComplete(tournament.matches)
   const nameOf = (pid: string | null) =>
     pid === null ? '等緊上場' : (tournament.players.find((p) => p.id === pid)?.name ?? '？')
+  const pools =
+    tournament.mode === 'poolsThenKnockout' && tournament.poolCount !== null
+      ? poolStandings(tournament.players, tournament.matches, tournament.poolCount)
+      : null
 
   return (
     <div className="board">
@@ -42,7 +48,7 @@ export function Board({ id }: { id: string }) {
       ) : (
         <section className="board__now chamfer" style={{ gridTemplateColumns: '1fr' }}>
           <div className="board__who" style={{ textAlign: 'center' }}>
-            {complete ? `打完喇 · 冠軍 ${championLine(rows)}` : '仲未排賽程'}
+            {complete ? `打完喇 · 冠軍 ${championLine(tournament, rows)}` : '仲未排賽程'}
           </div>
         </section>
       )}
@@ -52,7 +58,22 @@ export function Board({ id }: { id: string }) {
           <h2 className="u-eyebrow" style={{ marginBottom: 'var(--sp-3)' }}>
             排名榜
           </h2>
-          <Standings rows={rows} compact />
+          {pools === null ? (
+            <Standings rows={rows} compact />
+          ) : (
+            <div className="poolgrid">
+              {pools.map((table) => (
+                <div key={table.pool}>
+                  <h3 className="u-eyebrow">{poolLabel(table.pool)} 組</h3>
+                  <Standings
+                    rows={table.rows}
+                    compact
+                    cutAfter={tournament.advancePerPool ?? undefined}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section>
@@ -85,10 +106,16 @@ export function Board({ id }: { id: string }) {
 }
 
 /**
- * 第一位可以有幾個人並列。原本淨係讀 rows[0]，
- * 即係喺成班人面前照住個大螢幕，用名字排序隨機捧咗一個做冠軍。
+ * 電視上面寫邊個冠軍。
+ *
+ * 有籤表嘅模式睇籤表冠軍；純循環先睇排名第 1，而第一位可以有幾個人並列 ——
+ * 原本淨係讀 rows[0]，即係喺成班人面前照住個大螢幕，用名字排序隨機捧咗一個做冠軍。
  */
-function championLine(rows: StandingRow[]): string {
+function championLine(tournament: Tournament, rows: StandingRow[]): string {
+  if (tournament.mode !== 'roundRobin') {
+    const id = bracketChampion(tournament.matches)
+    return id === null ? '' : (tournament.players.find((p) => p.id === id)?.name ?? '')
+  }
   const top = rows.filter((r) => r.rank === 1)
   if (top.length === 0) return ''
   if (top.length === 1) return top[0]!.name
