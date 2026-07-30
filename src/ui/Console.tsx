@@ -13,6 +13,7 @@ import {
 } from '../engine/rules'
 import { completedCount } from '../engine/standings'
 import { bracketRoundName, clearDownstream, downstreamWithScores, propagate, totalBracketRounds } from '../engine/bracket'
+import { poolLabel } from '../engine/pools'
 import { groupStageComplete, hasBracket, nextPlayable } from '../engine/tournament'
 import { downloadJson } from '../lib/download'
 import { store } from '../storage/browserStore'
@@ -105,10 +106,15 @@ function ConsoleBody({
   }
 
   // 淘汰賽講「決賽」「四強」，唔講「第 3 輪」—— 階段先係人記得住嗰樣嘢。
+  // 小組賽再加返組別，唔係主持人分唔清而家叫緊邊組上台。
+  const poolNo =
+    match.stage === 'group' && match.aId !== null
+      ? (tournament.players.find((p) => p.id === match.aId)?.pool ?? null)
+      : null
   const stageLabel =
     match.stage === 'bracket'
       ? `${bracketRoundName(match.round, totalBracketRounds(tournament.matches))} · 第 ${match.order} 場`
-      : `第 ${match.round} 輪 · 全場第 ${position} 場`
+      : `${poolNo === null ? '' : `${poolLabel(poolNo)} 組 · `}第 ${match.round} 輪 · 全場第 ${position} 場`
 
   // 改呢場會清走後面幾多場已經打完嘅。
   const willClear = downstreamWithScores(tournament.matches, match.id)
@@ -119,7 +125,9 @@ function ConsoleBody({
   const allDone = done === tournament.matches.length
   // 循環打完但籤表未砌 —— 呢個唔算打完，仲有淘汰賽要打。
   const cutPending =
-    tournament.mode === 'groupThenKnockout' && groupStageComplete(tournament) && !hasBracket(tournament)
+    (tournament.mode === 'groupThenKnockout' || tournament.mode === 'poolsThenKnockout') &&
+    groupStageComplete(tournament) &&
+    !hasBracket(tournament)
 
   // 撳低嗰粒入分掣一贏就變 disabled，鍵盤焦點會跌返落 body。搬去「落一場」。
   useEffect(() => {

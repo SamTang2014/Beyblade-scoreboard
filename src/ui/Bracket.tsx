@@ -19,7 +19,10 @@ export function Bracket({ id }: { id: string }) {
 
   const bracket = bracketMatches(tournament.matches)
   const ready = hasBracket(tournament)
-  const canBuild = tournament.mode === 'groupThenKnockout' && !ready && groupStageComplete(tournament)
+  const canBuild =
+    (tournament.mode === 'groupThenKnockout' || tournament.mode === 'poolsThenKnockout') &&
+    !ready &&
+    groupStageComplete(tournament)
 
   return (
     <>
@@ -58,12 +61,21 @@ function NotYet({
   }
 
   if (canBuild) {
+    const pools = tournament.mode === 'poolsThenKnockout'
     return (
       <div className="verdict chamfer">
         <div>
-          <span className="u-eyebrow">循環賽打完喇</span>
-          <div className="verdict__who">頭 {tournament.cutSize} 名入籤表</div>
-          <span className="u-eyebrow">種子跟排名排，第 1 名對最後一個入圍嘅</span>
+          <span className="u-eyebrow">{pools ? '小組賽打完喇' : '大循環打完喇'}</span>
+          <div className="verdict__who">
+            {pools
+              ? `每組頭 ${tournament.advancePerPool} 名入籤表`
+              : `頭 ${tournament.cutSize} 名入籤表`}
+          </div>
+          <span className="u-eyebrow">
+            {pools
+              ? '交叉搵：A 組第 1 對 B 組第 2，同組嘅唔會一入淘汰就撞返'
+              : '種子跟排名排，第 1 名對最後一個入圍嘅'}
+          </span>
         </div>
         <button className="btn btn--primary btn--big chamfer" onClick={onBuild}>
           砌籤表
@@ -74,9 +86,19 @@ function NotYet({
 
   return (
     <p className="empty">
-      循環賽仲未打完，籤表要等成績出齊先砌得到。
-      <br />
-      入圍人數：頭 {tournament.cutSize ?? '？'} 名。
+      {tournament.mode === 'poolsThenKnockout' ? (
+        <>
+          小組賽仲未打完，籤表要等成績出齊先砌得到。
+          <br />
+          每組頭 {tournament.advancePerPool ?? '？'} 名入籤表。
+        </>
+      ) : (
+        <>
+          循環賽仲未打完，籤表要等成績出齊先砌得到。
+          <br />
+          入圍人數：頭 {tournament.cutSize ?? '？'} 名。
+        </>
+      )}
     </p>
   )
 }
