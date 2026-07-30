@@ -1,5 +1,6 @@
 import { drawOrder } from './bracket'
-import type { Player } from './types'
+import { bracketMatches, groupMatches, mergeSchedule } from './schedule'
+import type { Match, Player } from './types'
 
 /**
  * 小組賽。
@@ -86,4 +87,66 @@ export function poolsOf(players: Player[], poolCount: number): Player[][] {
   return Array.from({ length: Math.max(0, poolCount) }, (_, i) =>
     players.filter((p) => p.pool === i + 1).sort((x, y) => x.seat - y.seat),
   )
+}
+
+/**
+ * 逐組排／補賽程。
+ *
+ * 每組各自行圓周法 —— 直接用返 `mergeSchedule`，餵入去嘅淨係嗰組嘅人同嗰組嘅場次。
+ * 咁樣中途加人嘅處理（舊場次一場唔郁、同一輪冇人打兩場）自動繼承落嚟，
+ * 唔使喺呢度重寫一次排程邏輯。
+ *
+ * 輪次對齊：每組自己嘅第 1 輪就係全場第 1 輪。人少嗰組早幾輪打完就冇咗場次 ——
+ * 呢個係啱嘅，`byesInRound` 會知佢哋係打完唔係唞。
+ */
+export function buildPoolSchedule(
+  existing: Match[],
+  players: Player[],
+  poolCount: number,
+): Match[] {
+  const poolOf = new Map(players.map((p) => [p.id, p.pool]))
+  const group = groupMatches(existing)
+
+  const built: Match[] = []
+  for (const [i, pool] of poolsOf(players, poolCount).entries()) {
+    // 兩邊都要仲喺呢組先算數 —— 除咗名嘅、或者組別俾人改到唔合理嘅，
+    // 喺呢度自然咁跌咗出去。
+    const mine = group.filter(
+      (m) =>
+        m.aId !== null &&
+        m.bId !== null &&
+        poolOf.get(m.aId) === i + 1 &&
+        poolOf.get(m.bId) === i + 1,
+    )
+    built.push(...mergeSchedule(mine, pool))
+  }
+
+  return [...renumber(built, poolOf), ...bracketMatches(existing)]
+}
+
+/**
+ * 同一輪入面按組別 A→B→C 重編次序。
+ *
+ * 唔重編嘅話，兩組喺同一輪都會有一場 `order: 1`，`inPlayOrder` 排出嚟嘅
+ * 次序就靠 sort 穩定性頂住 —— 睇落 work，但補一次人就會跳位。
+ */
+function renumber(matches: Match[], poolOf: Map<string, number | null>): Match[] {
+  const sorted = [...matches].sort(
+    (x, y) =>
+      x.round - y.round ||
+      (poolOf.get(x.aId ?? '') ?? 0) - (poolOf.get(y.aId ?? '') ?? 0) ||
+      x.order - y.order ||
+      x.id.localeCompare(y.id),
+  )
+
+  let round = 0
+  let order = 0
+  return sorted.map((m) => {
+    if (m.round !== round) {
+      round = m.round
+      order = 0
+    }
+    order += 1
+    return { ...m, order }
+  })
 }

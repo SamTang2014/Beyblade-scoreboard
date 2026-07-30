@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest'
 import {
   advanceOptions,
   assignLatecomers,
+  buildPoolSchedule,
   drawPools,
   poolLabel,
   poolOptions,
   poolSizes,
   poolsOf,
 } from './pools'
-import type { Player } from './types'
+import type { Match, Player } from './types'
 
 function players(n: number): Player[] {
   return Array.from({ length: n }, (_, i) => ({
@@ -155,5 +156,101 @@ describe('逐組攞人', () => {
   it('未分組嘅唔會出現', () => {
     const roster: Player[] = [{ id: 'a', name: '阿明', seat: 0, pool: null }]
     expect(poolsOf(roster, 2)).toEqual([[], []])
+  })
+})
+
+describe('逐組排賽程', () => {
+  function drawn(n: number, k: number): Player[] {
+    // 唔洗牌，所以 p1 → 第 1 組、p2 → 第 2 組…… 好對數。
+    return drawPools(players(n), k, noShuffle)
+  }
+
+  it('冇跨組對戰', () => {
+    const roster = drawn(12, 3)
+    const poolOf = new Map(roster.map((p) => [p.id, p.pool]))
+    const ms = buildPoolSchedule([], roster, 3)
+    expect(ms.length).toBeGreaterThan(0)
+    for (const m of ms) {
+      expect(poolOf.get(m.aId!)).toBe(poolOf.get(m.bId!))
+    }
+  })
+
+  it('每組場數 = n(n−1)/2', () => {
+    const ms = buildPoolSchedule([], drawn(12, 3), 3)
+    expect(ms).toHaveLength(3 * 6) // 每組 4 人 → 6 場
+  })
+
+  it('組人數唔平均都啱', () => {
+    const ms = buildPoolSchedule([], drawn(13, 3), 3)
+    expect(ms).toHaveLength(10 + 6 + 6) // 5 人組 10 場，兩個 4 人組各 6 場
+  })
+
+  it('同一輪冇人打兩場', () => {
+    const ms = buildPoolSchedule([], drawn(13, 3), 3)
+    for (const round of new Set(ms.map((m) => m.round))) {
+      const seen = new Set<string>()
+      for (const m of ms.filter((x) => x.round === round)) {
+        expect(seen.has(m.aId!)).toBe(false)
+        expect(seen.has(m.bId!)).toBe(false)
+        seen.add(m.aId!)
+        seen.add(m.bId!)
+      }
+    }
+  })
+
+  it('同一輪入面按組別 A→B→C 編次序，同組嘅連住一齊', () => {
+    const roster = drawn(12, 3)
+    const poolOf = new Map(roster.map((p) => [p.id, p.pool!]))
+    const first = buildPoolSchedule([], roster, 3)
+      .filter((m) => m.round === 1)
+      .sort((x, y) => x.order - y.order)
+    expect(first.map((m) => m.order)).toEqual([1, 2, 3, 4, 5, 6])
+    expect(first.map((m) => poolOf.get(m.aId!))).toEqual([1, 1, 2, 2, 3, 3])
+  })
+
+  it('遲到加人：補返嗰組嘅新場次，打咗嘅一場都唔郁', () => {
+    const roster = drawn(8, 2)
+    const before = buildPoolSchedule([], roster, 2).map((m, i) =>
+      i === 0 ? { ...m, rounds: [{ winnerId: m.aId!, finish: 'xtreme' as const }] } : m,
+    )
+    const withNew = assignLatecomers(
+      [...roster, { id: 'late', name: '阿 May', seat: 8, pool: null }],
+      2,
+    )
+    const after = buildPoolSchedule(before, withNew, 2)
+
+    // 舊場次連分數原封不動。
+    for (const old of before) {
+      const same = after.find((m) => m.id === old.id)
+      expect(same).toBeDefined()
+      expect(same!.rounds).toEqual(old.rounds)
+    }
+    // 阿 May 補返同組其他 4 個人嘅場次。
+    expect(after.filter((m) => m.aId === 'late' || m.bId === 'late')).toHaveLength(4)
+  })
+
+  it('除名之後，佢嘅場次一齊消失', () => {
+    const roster = drawn(8, 2)
+    const before = buildPoolSchedule([], roster, 2)
+    const left = roster.filter((p) => p.id !== 'p1')
+    const after = buildPoolSchedule(before, left, 2)
+    expect(after.some((m) => m.aId === 'p1' || m.bId === 'p1')).toBe(false)
+  })
+
+  it('淘汰階段嘅場次原封不動擺返出去', () => {
+    const roster = drawn(4, 2)
+    const bracket: Match = {
+      id: 'b1m1',
+      stage: 'bracket',
+      round: 1,
+      order: 1,
+      aId: 'p1',
+      bId: 'p2',
+      aFrom: null,
+      bFrom: null,
+      rounds: [],
+    }
+    const after = buildPoolSchedule([...buildPoolSchedule([], roster, 2), bracket], roster, 2)
+    expect(after.filter((m) => m.stage === 'bracket')).toEqual([bracket])
   })
 })

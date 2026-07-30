@@ -21,6 +21,21 @@ function players(n: number): Player[] {
   }))
 }
 
+/** 一場循環賽場次，淨係用嚟砌測試數據，唔理藍紅邊。 */
+function mk(aId: string, bId: string, round: number): Match {
+  return {
+    id: matchKey(aId, bId),
+    stage: 'group',
+    round,
+    order: 1,
+    aId,
+    bId,
+    aFrom: null,
+    bFrom: null,
+    rounds: [],
+  }
+}
+
 /** 一輪入面嘅配對，唔理藍紅邊同次序。 */
 function pairsInRound(matches: Match[], round: number): string[] {
   return matches
@@ -274,6 +289,39 @@ describe('係咪乾淨嘅圓周法排程', () => {
     const ps = players(4)
     const shifted = generateSchedule(ps).map((m) => ({ ...m, round: 1 }))
     expect(isPureCircleSchedule(shifted, ps)).toBe(false)
+  })
+})
+
+describe('呢輪唞（小組賽）', () => {
+  it('打完咗嘅組唔會顯示「唞」', () => {
+    // A 組 2 個人（1 輪打完），B 組 4 個人（3 輪）。
+    const roster: Player[] = [
+      { id: 'a1', name: 'A1', seat: 0, pool: 1 },
+      { id: 'a2', name: 'A2', seat: 1, pool: 1 },
+      { id: 'b1', name: 'B1', seat: 2, pool: 2 },
+      { id: 'b2', name: 'B2', seat: 3, pool: 2 },
+      { id: 'b3', name: 'B3', seat: 4, pool: 2 },
+      { id: 'b4', name: 'B4', seat: 5, pool: 2 },
+    ]
+    const matches: Match[] = [
+      mk('a1', 'a2', 1),
+      mk('b1', 'b2', 1),
+      mk('b3', 'b4', 1),
+      mk('b1', 'b3', 2),
+      mk('b2', 'b4', 2),
+    ]
+    expect(byesInRound(matches, roster, 1)).toEqual([])
+    // 第 2 輪 A 組冇場次 —— 佢哋係打完咗，唔係唞。
+    expect(byesInRound(matches, roster, 2)).toEqual([])
+  })
+
+  it('同組入面真係有人唞就照講', () => {
+    const roster: Player[] = [
+      { id: 'a1', name: 'A1', seat: 0, pool: 1 },
+      { id: 'a2', name: 'A2', seat: 1, pool: 1 },
+      { id: 'a3', name: 'A3', seat: 2, pool: 1 },
+    ]
+    expect(byesInRound([mk('a1', 'a2', 1)], roster, 1).map((p) => p.id)).toEqual(['a3'])
   })
 })
 

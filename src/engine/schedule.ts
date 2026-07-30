@@ -204,15 +204,30 @@ export function bracketMatches(matches: Match[]): Match[] {
   return matches.filter((m) => m.stage === 'bracket')
 }
 
-/** 邊個喺呢輪冇得打。 */
+/**
+ * 邊個喺呢輪冇得打。
+ *
+ * 小組賽度唔可以淨係睇「有冇場次」：A 組 4 個人 3 輪打完，B 組 5 個人打到第 5 輪，
+ * 咁 A 組全部人喺第 4、5 輪就會顯示「唞」—— 但佢哋係打完咗，唔係唞。
+ *
+ * 所以要同組有人喺嗰輪有場次，先當佢係唞。其他模式全部人 `pool` 都係 null，
+ * 即係大家同一組，行為同以前一模一樣。
+ */
 export function byesInRound(matches: Match[], players: Player[], round: number): Player[] {
+  const poolOf = new Map(players.map((p) => [p.id, p.pool]))
   const playing = new Set<string>()
+  const busyPools = new Set<number | null>()
+
   for (const m of groupMatches(matches)) {
     if (m.round !== round) continue
-    if (m.aId !== null) playing.add(m.aId)
-    if (m.bId !== null) playing.add(m.bId)
+    for (const pid of [m.aId, m.bId]) {
+      if (pid === null) continue
+      playing.add(pid)
+      busyPools.add(poolOf.get(pid) ?? null)
+    }
   }
-  return seated(players).filter((p) => !playing.has(p.id))
+
+  return seated(players).filter((p) => !playing.has(p.id) && busyPools.has(p.pool))
 }
 
 /** 賽程順序：先按輪次，再按輪入面嘅次序。 */
