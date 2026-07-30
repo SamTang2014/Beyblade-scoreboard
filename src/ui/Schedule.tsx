@@ -24,7 +24,9 @@ export function Schedule({ id }: { id: string }) {
   const dialMatches =
     pools === null
       ? tournament.matches
-      : tournament.matches.filter((m) => m.aId !== null && poolOf.get(m.aId) === shownPool)
+      : tournament.matches.filter(
+          (m) => m.stage === 'group' && m.aId !== null && poolOf.get(m.aId) === shownPool,
+        )
 
   const rounds = [...new Set(inPlayOrder(tournament.matches).map((m) => m.round))]
   const laps = totalRounds(dialPlayers.length)
@@ -173,15 +175,17 @@ function MatchRow({
     return `${base} ${winner === pid ? 'mrow__won' : 'mrow__lost'}`
   }
 
+  // 淘汰場次唔畫章 —— Player.pool 開波抽咗組之後就唔會再清，
+  // 所以淨係睇 poolOf 唔夠，仲要 stage 係 'group' 先算數，唔係贏咗出線嗰個都會拖住舊組別章。
+  const pool = poolOf !== null && match.stage === 'group' ? poolOf.get(match.aId ?? '') : undefined
+
   return (
     <a
       className="mrow"
       href={`#/t/${id}/m/${match.id}`}
       aria-current={status === 'live' ? 'true' : undefined}
     >
-      {poolOf !== null && match.aId !== null && poolOf.get(match.aId) != null && (
-        <span className="mrow__pool">{poolLabel(poolOf.get(match.aId)!)}</span>
-      )}
+      {pool != null && <span className="mrow__pool">{poolLabel(pool)}</span>}
       <span className={cls('a')}>{nameOf(match.aId)}</span>
       <span className={status === 'live' ? 'mrow__score mrow__score--live' : 'mrow__score'}>
         {status === 'pending' ? '對' : `${score.a}–${score.b}`}
