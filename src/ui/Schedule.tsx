@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTournament } from '../storage/browserStore'
 import { byesInRound, inPlayOrder, isPureCircleSchedule, totalRounds } from '../engine/schedule'
 import { matchScore, matchStatus, matchWinnerId } from '../engine/rules'
+import { poolLabel, poolsOf } from '../engine/pools'
 import { TopBar } from './components/TopBar'
 import { CircleDial } from './components/CircleDial'
 import { NotFound } from './Setup'
@@ -10,17 +11,28 @@ import type { Match, Tournament } from '../engine/types'
 export function Schedule({ id }: { id: string }) {
   const { tournament } = useTournament(id)
   const [shownRound, setShownRound] = useState(1)
+  const [shownPool, setShownPool] = useState(1)
 
   if (tournament === null) return <NotFound />
 
+  const isPools = tournament.mode === 'poolsThenKnockout' && tournament.poolCount !== null
+  const pools = isPools ? poolsOf(tournament.players, tournament.poolCount!) : null
+  const poolOf = new Map(tournament.players.map((p) => [p.id, p.pool]))
+
+  // 轉盤一次淨係畫一組 —— 三個圈疊埋一齊邊個都睇唔明。
+  const dialPlayers = pools === null ? tournament.players : (pools[shownPool - 1] ?? [])
+  const dialMatches =
+    pools === null
+      ? tournament.matches
+      : tournament.matches.filter((m) => m.aId !== null && poolOf.get(m.aId) === shownPool)
+
   const rounds = [...new Set(inPlayOrder(tournament.matches).map((m) => m.round))]
-  const laps = totalRounds(tournament.players.length)
+  const laps = totalRounds(dialPlayers.length)
 
   // 中途加過人之後賽程唔再係轉盤轉出嚟，個轉盤會同下面啲場次對唔上，所以收起佢。
   const showDial =
-    tournament.players.length >= 2 &&
-    (tournament.matches.length === 0 ||
-      isPureCircleSchedule(tournament.matches, tournament.players))
+    dialPlayers.length >= 2 &&
+    (dialMatches.length === 0 || isPureCircleSchedule(dialMatches, dialPlayers))
 
   return (
     <>
@@ -43,10 +55,27 @@ export function Schedule({ id }: { id: string }) {
 
         {showDial && (
           <section>
+            {pools !== null && (
+              <div className="chips" style={{ justifyContent: 'center', marginBottom: 'var(--sp-3)' }}>
+                {pools.map((_, i) => (
+                  <button
+                    key={i}
+                    className="chip chamfer-sm"
+                    aria-pressed={shownPool === i + 1}
+                    onClick={() => {
+                      setShownPool(i + 1)
+                      setShownRound(1)
+                    }}
+                  >
+                    {poolLabel(i + 1)} 組
+                  </button>
+                ))}
+              </div>
+            )}
             <CircleDial
-              players={tournament.players}
+              players={dialPlayers}
               round={shownRound}
-              matches={tournament.matches}
+              matches={dialMatches}
               caption="有圈嗰個位釘死唔郁，其餘每過一輪順時針行一格，行到邊個位就同對面嗰位打。藍點紅點就係嗰場邊個企藍邊、邊個企紅邊。"
             />
             <div className="btnrow" style={{ justifyContent: 'center', marginTop: 'var(--sp-3)' }}>
@@ -75,7 +104,13 @@ export function Schedule({ id }: { id: string }) {
         ) : (
           <div className="rounds">
             {rounds.map((round) => (
-              <RoundBlock key={round} id={id} round={round} tournament={tournament} />
+              <RoundBlock
+                key={round}
+                id={id}
+                round={round}
+                tournament={tournament}
+                poolOf={isPools ? poolOf : null}
+              />
             ))}
           </div>
         )}
@@ -88,10 +123,12 @@ function RoundBlock({
   id,
   round,
   tournament,
+  poolOf,
 }: {
   id: string
   round: number
   tournament: Tournament
+  poolOf: Map<string, number | null> | null
 }) {
   const matches = inPlayOrder(tournament.matches).filter((m) => m.round === round)
   const byes = byesInRound(tournament.matches, tournament.players, round)
@@ -106,13 +143,23 @@ function RoundBlock({
         )}
       </div>
       {matches.map((m) => (
-        <MatchRow key={m.id} id={id} match={m} tournament={tournament} />
+        <MatchRow key={m.id} id={id} match={m} tournament={tournament} poolOf={poolOf} />
       ))}
     </section>
   )
 }
 
-function MatchRow({ id, match, tournament }: { id: string; match: Match; tournament: Tournament }) {
+function MatchRow({
+  id,
+  match,
+  tournament,
+  poolOf,
+}: {
+  id: string
+  match: Match
+  tournament: Tournament
+  poolOf: Map<string, number | null> | null
+}) {
   const nameOf = (pid: string | null) =>
     pid === null ? '等緊上場' : (tournament.players.find((p) => p.id === pid)?.name ?? '？')
   const score = matchScore(match)
@@ -132,6 +179,9 @@ function MatchRow({ id, match, tournament }: { id: string; match: Match; tournam
       href={`#/t/${id}/m/${match.id}`}
       aria-current={status === 'live' ? 'true' : undefined}
     >
+      {poolOf !== null && match.aId !== null && poolOf.get(match.aId) != null && (
+        <span className="mrow__pool">{poolLabel(poolOf.get(match.aId)!)}</span>
+      )}
       <span className={cls('a')}>{nameOf(match.aId)}</span>
       <span className={status === 'live' ? 'mrow__score mrow__score--live' : 'mrow__score'}>
         {status === 'pending' ? '對' : `${score.a}–${score.b}`}

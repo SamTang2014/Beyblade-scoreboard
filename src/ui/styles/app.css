@@ -1080,6 +1080,16 @@ table {
   color: var(--ink-faint);
 }
 
+/* 賽程入面嘅組別章。 */
+.mrow__pool {
+  flex: 0 0 auto;
+  padding: 0.05em 0.35em;
+  font-size: var(--step--2);
+  font-variation-settings: 'wdth' 100, 'wght' 700;
+  color: var(--ink-faint);
+  background: var(--floor-sunk);
+}
+
 .mrow__score {
   min-width: 4.5ch;
   color: var(--ink-soft);
