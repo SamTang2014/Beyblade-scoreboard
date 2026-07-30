@@ -1,6 +1,7 @@
-import { drawOrder } from './bracket'
+import { bracketSize, drawOrder, seedSlots } from './bracket'
 import { bracketMatches, groupMatches, mergeSchedule } from './schedule'
-import type { Match, Player } from './types'
+import { computeStandings } from './standings'
+import type { Match, Player, StandingRow } from './types'
 
 /**
  * 小組賽。
@@ -149,4 +150,145 @@ function renumber(matches: Match[], poolOf: Map<string, number | null>): Match[]
     order += 1
     return { ...m, order }
   })
+}
+
+export interface PoolTable {
+  /** 第幾組，1 起計。 */
+  pool: number
+  players: Player[]
+  rows: StandingRow[]
+}
+
+/**
+ * 逐組排名。
+ *
+ * 同一套 tiebreak（`computeStandings` 唔使改），淨係餵入去嘅選手同場次
+ * 換成嗰組嘅 —— 所以 B 組打完一場唔會郁到 A 組嘅名次。
+ */
+export function poolStandings(players: Player[], matches: Match[], poolCount: number): PoolTable[] {
+  const group = groupMatches(matches)
+  return poolsOf(players, poolCount).map((pool, i) => {
+    const ids = new Set(pool.map((p) => p.id))
+    // 兩邊一定同組，所以查一邊就夠。
+    const mine = group.filter((m) => m.aId !== null && ids.has(m.aId))
+    return { pool: i + 1, players: pool, rows: computeStandings(pool, mine) }
+  })
+}
+
+/**
+ * 交叉種子。
+ *
+ * 各組第 1 名排一梯次、各組第 2 名排下一梯次，如此類推；同梯次之間用
+ * 總成績（全部小組場次一齊計）分先後。排完再行修補 pass。
+ *
+ * 點解要梯次：同組嘅人組內已經打過，一入淘汰就重演冇意思。
+ */
+export function poolSeedOrder(
+  players: Player[],
+  matches: Match[],
+  poolCount: number,
+  advancePerPool: number,
+): string[] {
+  const tables = poolStandings(players, matches, poolCount)
+  const globalRank = new Map(
+    computeStandings(players, groupMatches(matches)).map((r, i) => [r.playerId, i]),
+  )
+
+  const seeds: string[] = []
+  const tierOf = new Map<string, number>()
+
+  for (let place = 0; place < advancePerPool; place++) {
+    const tier = tables
+      .map((t) => t.rows[place]?.playerId)
+      .filter((id): id is string => id !== undefined)
+      .sort((x, y) => (globalRank.get(x) ?? 0) - (globalRank.get(y) ?? 0))
+    for (const id of tier) tierOf.set(id, place)
+    seeds.push(...tier)
+  }
+
+  const poolOf = new Map(players.map((p) => [p.id, p.pool]))
+  return avoidSamePool(seeds, poolOf, tierOf)
+}
+
+/**
+ * 修補 pass：首圈撞到同組嘅就換位。
+ *
+ * 郁後面嗰個種子（位序細嗰個唔郁，保住上梯次嘅位），喺**同梯次**入面搵對象換。
+ * 換之前兩邊都要 check：換完呢一對唔再同組，而且被抽走嗰個原本嗰對亦唔會變成同組。
+ * 逐對按位序掃、候選按種子號由細到大掃，第一個合格就換 —— 所以結果係定死嘅，唔靠隨機。
+ *
+ * **點解唔用一條死規則：** 試過兩條都唔 work ——
+ * 梯次照順序排，3 組出 2 個嗰陣 C 組第 1 會撞返 C 組第 2；
+ * 梯次輪轉一格，2 組出 2 個嗰陣 A 組第 1 會撞返 A 組第 2。冇一條固定規則食晒所有組合。
+ *
+ * 掃到冇嘢再換為止（最多 4 次）—— 換一次可能開返另一對出嚟，一 pass 唔一定收得晒。
+ * 真係搵唔到候選就照擺，唔硬拗。
+ *
+ * ⚠ 呢個 function 淨係管**首圈**。後面幾輪冇得保證：2 組出 3 個嗰陣，
+ * A 組第 1 有可能喺第 2 輪撞返啱啱贏咗首圈嘅 A 組第 3。呢個係單淘汰籤表嘅本質。
+ */
+export function avoidSamePool(
+  seeds: string[],
+  poolOf: Map<string, number | null>,
+  tierOf: Map<string, number>,
+): string[] {
+  const out = [...seeds]
+  if (out.length < 2) return out
+
+  const size = bracketSize(out.length)
+  const slots = seedSlots(size)
+
+  /** 種子號 → 首圈對手嘅種子號。 */
+  const rival = new Map<number, number>()
+  for (let i = 0; i < size; i += 2) {
+    rival.set(slots[i]!, slots[i + 1]!)
+    rival.set(slots[i + 1]!, slots[i]!)
+  }
+
+  /** 種子號係邊組。號碼超出人數即係輪空，冇組。 */
+  const poolAt = (seedNo: number): number | null | undefined =>
+    seedNo > out.length ? undefined : (poolOf.get(out[seedNo - 1]!) ?? null)
+
+  const clash = (x: number, y: number): boolean => {
+    const px = poolAt(x)
+    const py = poolAt(y)
+    return px !== undefined && py !== undefined && px === py
+  }
+
+  // 換一次可能開返另一對出嚟，所以掃到冇嘢再換為止。
+  for (let pass = 0; pass < 4; pass++) {
+    let swapped = false
+
+    for (let i = 0; i < size; i += 2) {
+      const x = slots[i]!
+      const y = slots[i + 1]!
+      if (!clash(x, y)) continue
+
+      const keep = Math.min(x, y)
+      const move = Math.max(x, y)
+
+      for (let c = 1; c <= out.length; c++) {
+        if (c === keep || c === move) continue
+        if (tierOf.get(out[c - 1]!) !== tierOf.get(out[move - 1]!)) continue
+
+        const partner = rival.get(c)!
+        const mine = out[move - 1]!
+        out[move - 1] = out[c - 1]!
+        out[c - 1] = mine
+
+        if (!clash(keep, move) && !clash(c, partner)) {
+          swapped = true
+          break
+        }
+
+        // 換唔成，換返轉頭。次序要緊：先寫返 c 個位。
+        out[c - 1] = out[move - 1]!
+        out[move - 1] = mine
+      }
+    }
+
+    if (!swapped) break
+  }
+
+  return out
 }

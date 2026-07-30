@@ -1012,7 +1012,7 @@ describe('交叉種子', () => {
   }
 
   /** 首圈有幾多場係同組內戰。 */
-  function sameePoolFirstRound(seeds: string[], poolOf: Map<string, number>): number {
+  function samePoolFirstRound(seeds: string[], poolOf: Map<string, number>): number {
     return generateBracket(seeds)
       .filter((m) => m.round === 1)
       .filter((m) => poolOf.get(m.aId!) === poolOf.get(m.bId!)).length
@@ -1022,7 +1022,7 @@ describe('交叉種子', () => {
     const roster = pooled(ids)
     const seeds = poolSeedOrder(roster, played(roster), poolCount, advance)
     const poolOf = new Map(roster.map((p) => [p.id, p.pool!]))
-    return { seeds, poolOf, clashes: sameePoolFirstRound(seeds, poolOf) }
+    return { seeds, poolOf, clashes: samePoolFirstRound(seeds, poolOf) }
   }
 
   it('2 組出 2 個：A1 對 B2、B1 對 A2', () => {

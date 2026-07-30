@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { generateBracket } from './bracket'
 import {
   advanceOptions,
   assignLatecomers,
@@ -6,9 +7,12 @@ import {
   drawPools,
   poolLabel,
   poolOptions,
+  poolSeedOrder,
   poolSizes,
+  poolStandings,
   poolsOf,
 } from './pools'
+import { matchKey } from './rules'
 import type { Match, Player } from './types'
 
 function players(n: number): Player[] {
@@ -252,5 +256,151 @@ describe('逐組排賽程', () => {
     }
     const after = buildPoolSchedule([...buildPoolSchedule([], roster, 2), bracket], roster, 2)
     expect(after.filter((m) => m.stage === 'bracket')).toEqual([bracket])
+  })
+})
+
+describe('逐組排名', () => {
+  /** 一場打到 4 分，指定邊個贏。 */
+  function won(aId: string, bId: string, winnerId: string, round: number): Match {
+    return {
+      id: matchKey(aId, bId),
+      stage: 'group',
+      round,
+      order: 1,
+      aId,
+      bId,
+      aFrom: null,
+      bFrom: null,
+      rounds: [
+        { winnerId, finish: 'xtreme' },
+        { winnerId, finish: 'spin' },
+      ],
+    }
+  }
+
+  const roster: Player[] = [
+    { id: 'a1', name: 'A1', seat: 0, pool: 1 },
+    { id: 'a2', name: 'A2', seat: 1, pool: 1 },
+    { id: 'b1', name: 'B1', seat: 2, pool: 2 },
+    { id: 'b2', name: 'B2', seat: 3, pool: 2 },
+  ]
+
+  it('逐組獨立計，B 組打完唔會郁到 A 組嘅名次', () => {
+    const tables = poolStandings(roster, [won('a1', 'a2', 'a1', 1), won('b1', 'b2', 'b2', 1)], 2)
+    expect(tables).toHaveLength(2)
+    expect(tables[0]!.rows.map((r) => r.playerId)).toEqual(['a1', 'a2'])
+    expect(tables[1]!.rows.map((r) => r.playerId)).toEqual(['b2', 'b1'])
+    // A 組個表淨係得 A 組嘅人。
+    expect(tables[0]!.rows).toHaveLength(2)
+  })
+
+  it('組號由 1 起計', () => {
+    expect(poolStandings(roster, [], 2).map((t) => t.pool)).toEqual([1, 2])
+  })
+})
+
+describe('交叉種子', () => {
+  /** 砌一批選手，pool 跟住個 id 前綴（a → 1、b → 2、c → 3、d → 4）。 */
+  function pooled(spec: string[]): Player[] {
+    return spec.map((id, i) => ({
+      id,
+      name: id.toUpperCase(),
+      seat: i,
+      pool: id.charCodeAt(0) - 96,
+    }))
+  }
+
+  /**
+   * 砌一批「已經打完」嘅小組場次，令組內名次同 id 尾嗰個數字對得返
+   * （a1 排 A 組第 1、a2 排第 2…）。
+   */
+  function played(roster: Player[]): Match[] {
+    const out: Match[] = []
+    const byPool = new Map<number, Player[]>()
+    for (const p of roster) {
+      const list = byPool.get(p.pool!) ?? []
+      list.push(p)
+      byPool.set(p.pool!, list)
+    }
+    for (const list of byPool.values()) {
+      for (let i = 0; i < list.length; i++) {
+        for (let j = i + 1; j < list.length; j++) {
+          const x = list[i]!
+          const y = list[j]!
+          // 排前面嗰個（尾數細）贏。
+          out.push({
+            id: matchKey(x.id, y.id),
+            stage: 'group',
+            round: 1,
+            order: 1,
+            aId: x.id,
+            bId: y.id,
+            aFrom: null,
+            bFrom: null,
+            rounds: [
+              { winnerId: x.id, finish: 'xtreme' },
+              { winnerId: x.id, finish: 'spin' },
+            ],
+          })
+        }
+      }
+    }
+    return out
+  }
+
+  /** 首圈有幾多場係同組內戰。 */
+  function samePoolFirstRound(seeds: string[], poolOf: Map<string, number>): number {
+    return generateBracket(seeds)
+      .filter((m) => m.round === 1)
+      .filter((m) => poolOf.get(m.aId!) === poolOf.get(m.bId!)).length
+  }
+
+  function run(ids: string[], poolCount: number, advance: number) {
+    const roster = pooled(ids)
+    const seeds = poolSeedOrder(roster, played(roster), poolCount, advance)
+    const poolOf = new Map(roster.map((p) => [p.id, p.pool!]))
+    return { seeds, poolOf, clashes: samePoolFirstRound(seeds, poolOf) }
+  }
+
+  it('2 組出 2 個：A1 對 B2、B1 對 A2', () => {
+    const { seeds } = run(['a1', 'a2', 'b1', 'b2'], 2, 2)
+    const first = generateBracket(seeds).filter((m) => m.round === 1)
+    const pairs = first.map((m) => [m.aId, m.bId].sort().join('+')).sort()
+    expect(pairs).toEqual(['a1+b2', 'a2+b1'])
+  })
+
+  it('3 組出 2 個：首圈零同組內戰', () => {
+    expect(run(['a1', 'a2', 'a3', 'b1', 'b2', 'b3', 'c1', 'c2', 'c3'], 3, 2).clashes).toBe(0)
+  })
+
+  it('4 組出 2 個：首圈零同組內戰', () => {
+    const ids = ['a', 'b', 'c', 'd'].flatMap((g) => [1, 2, 3].map((n) => `${g}${n}`))
+    expect(run(ids, 4, 2).clashes).toBe(0)
+  })
+
+  it('2–4 組 × 每組出 1／2／3：逐個組合首圈都係零同組內戰', () => {
+    for (const k of [2, 3, 4]) {
+      for (const advance of [1, 2, 3]) {
+        // 每組砌 3 個人，咁樣出 1／2／3 個都夠。
+        const ids = ['a', 'b', 'c', 'd']
+          .slice(0, k)
+          .flatMap((g) => [1, 2, 3].map((n) => `${g}${n}`))
+        expect(run(ids, k, advance).clashes, `${k} 組出 ${advance} 個`).toBe(0)
+      }
+    }
+  })
+
+  it('修補 pass 唔會搞亂梯次：各組第 1 名全部排喺各組第 2 名之前', () => {
+    const { seeds } = run(['a1', 'a2', 'b1', 'b2', 'c1', 'c2'], 3, 2)
+    const place = (id: string) => Number(id.slice(1))
+    const firstTier = seeds.slice(0, 3).map(place)
+    const secondTier = seeds.slice(3).map(place)
+    expect(firstTier.every((p) => p === 1)).toBe(true)
+    expect(secondTier.every((p) => p === 2)).toBe(true)
+  })
+
+  it('入圍人數 = 組數 × 每組出幾多個', () => {
+    const ids = ['a', 'b', 'c'].flatMap((g) => [1, 2, 3].map((n) => `${g}${n}`))
+    expect(run(ids, 3, 2).seeds).toHaveLength(6)
   })
 })
