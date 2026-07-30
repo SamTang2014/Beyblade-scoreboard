@@ -1041,11 +1041,13 @@ describe('交叉種子', () => {
     expect(run(ids, 4, 2).clashes).toBe(0)
   })
 
-  it('2–4 組 × 每組出 1／2／3：逐個組合首圈都係零同組內戰', () => {
-    for (const k of [2, 3, 4]) {
+  it('2–6 組 × 每組出 1／2／3：逐個組合首圈都係零同組內戰', () => {
+    // 上限跟住 poolOptions（最多 6 組）—— 5 組出 3 個係最有料嗰格：
+    // 首圈 7 場，而且真係踩到修補 pass。
+    for (const k of [2, 3, 4, 5, 6]) {
       for (const advance of [1, 2, 3]) {
         // 每組砌 3 個人，咁樣出 1／2／3 個都夠。
-        const ids = ['a', 'b', 'c', 'd']
+        const ids = ['a', 'b', 'c', 'd', 'e', 'f']
           .slice(0, k)
           .flatMap((g) => [1, 2, 3].map((n) => `${g}${n}`))
         expect(run(ids, k, advance).clashes, `${k} 組出 ${advance} 個`).toBe(0)
@@ -1160,7 +1162,9 @@ export function poolSeedOrder(
  * 梯次照順序排，3 組出 2 個嗰陣 C 組第 1 會撞返 C 組第 2；
  * 梯次輪轉一格，2 組出 2 個嗰陣 A 組第 1 會撞返 A 組第 2。冇一條固定規則食晒所有組合。
  *
- * 掃到冇嘢再換為止（最多 4 次）—— 換一次可能開返另一對出嚟，一 pass 唔一定收得晒。
+ * 掃到冇嘢再換為止（最多 4 次）。**唔係因為換一次會整爛第二對** —— 換之前兩對都驗過，
+ * 整唔爛。係因為一對搵唔到合格候選嘅時候，後面幾次換位可能會令佢搵到。
+ * 擋住「補甲爆乙」嗰個係接受條件度嗰兩個 clash check，唔係呢個 loop。
  * 真係搵唔到候選就照擺，唔硬拗。
  *
  * ⚠ 呢個 function 淨係管**首圈**。後面幾輪冇得保證：2 組出 3 個嗰陣，
@@ -1194,7 +1198,7 @@ export function avoidSamePool(
     return px !== undefined && py !== undefined && px === py
   }
 
-  // 換一次可能開返另一對出嚟，所以掃到冇嘢再換為止。
+  // 一對搵唔到合格候選嘅時候，後面幾次換位可能會令佢搵到，所以掃到冇嘢再換為止。
   for (let pass = 0; pass < 4; pass++) {
     let swapped = false
 
@@ -1215,6 +1219,8 @@ export function avoidSamePool(
         out[move - 1] = out[c - 1]!
         out[c - 1] = mine
 
+        // 呢兩個 check 分唔開：只驗自己嗰對就會「補甲爆乙」——
+        // 修好咗呢一對，同時喺對方嗰對度整咗個新嘅同組內戰出嚟。
         if (!clash(keep, move) && !clash(c, partner)) {
           swapped = true
           break
