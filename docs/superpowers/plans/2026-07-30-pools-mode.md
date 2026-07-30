@@ -1040,16 +1040,16 @@ describe('交叉種子', () => {
     expect(run(ids, 4, 2).clashes).toBe(0)
   })
 
-  it('每組出 1 個：一定零同組內戰', () => {
+  it('2–4 組 × 每組出 1／2／3：逐個組合首圈都係零同組內戰', () => {
     for (const k of [2, 3, 4]) {
-      const ids = ['a', 'b', 'c', 'd'].slice(0, k).flatMap((g) => [1, 2].map((n) => `${g}${n}`))
-      expect(run(ids, k, 1).clashes).toBe(0)
+      for (const advance of [1, 2, 3]) {
+        // 每組砌 3 個人，咁樣出 1／2／3 個都夠。
+        const ids = ['a', 'b', 'c', 'd']
+          .slice(0, k)
+          .flatMap((g) => [1, 2, 3].map((n) => `${g}${n}`))
+        expect(run(ids, k, advance).clashes, `${k} 組出 ${advance} 個`).toBe(0)
+      }
     }
-  })
-
-  it('2 組出 3 個：避無可避，啱啱一場同組內戰', () => {
-    // 6 個人入 8 人籤表，兩個輪空位食咗兩個人，剩返 4 個一定有一對同組。
-    expect(run(['a1', 'a2', 'a3', 'b1', 'b2', 'b3'], 2, 3).clashes).toBe(1)
   })
 
   it('修補 pass 唔會搞亂梯次：各組第 1 名全部排喺各組第 2 名之前', () => {
@@ -1159,8 +1159,11 @@ export function poolSeedOrder(
  * 梯次照順序排，3 組出 2 個嗰陣 C 組第 1 會撞返 C 組第 2；
  * 梯次輪轉一格，2 組出 2 個嗰陣 A 組第 1 會撞返 A 組第 2。冇一條固定規則食晒所有組合。
  *
- * **有啲組合係避無可避嘅**（2 組出 3 個：6 個人入 8 人籤表，兩個輪空位食咗兩個，
- * 剩返 4 個一定有一對同組）。搵唔到候選就照擺，唔硬拗。
+ * 掃到冇嘢再換為止（最多 4 次）—— 換一次可能開返另一對出嚟，一 pass 唔一定收得晒。
+ * 真係搵唔到候選就照擺，唔硬拗。
+ *
+ * ⚠ 呢個 function 淨係管**首圈**。後面幾輪冇得保證：2 組出 3 個嗰陣，
+ * A 組第 1 有可能喺第 2 輪撞返啱啱贏咗首圈嘅 A 組第 3。呢個係單淘汰籤表嘅本質。
  */
 export function avoidSamePool(
   seeds: string[],
@@ -1190,29 +1193,39 @@ export function avoidSamePool(
     return px !== undefined && py !== undefined && px === py
   }
 
-  for (let i = 0; i < size; i += 2) {
-    const x = slots[i]!
-    const y = slots[i + 1]!
-    if (!clash(x, y)) continue
+  // 換一次可能開返另一對出嚟，所以掃到冇嘢再換為止。
+  for (let pass = 0; pass < 4; pass++) {
+    let swapped = false
 
-    const keep = Math.min(x, y)
-    const move = Math.max(x, y)
+    for (let i = 0; i < size; i += 2) {
+      const x = slots[i]!
+      const y = slots[i + 1]!
+      if (!clash(x, y)) continue
 
-    for (let c = 1; c <= out.length; c++) {
-      if (c === keep || c === move) continue
-      if (tierOf.get(out[c - 1]!) !== tierOf.get(out[move - 1]!)) continue
+      const keep = Math.min(x, y)
+      const move = Math.max(x, y)
 
-      const partner = rival.get(c)!
-      const mine = out[move - 1]!
-      out[move - 1] = out[c - 1]!
-      out[c - 1] = mine
+      for (let c = 1; c <= out.length; c++) {
+        if (c === keep || c === move) continue
+        if (tierOf.get(out[c - 1]!) !== tierOf.get(out[move - 1]!)) continue
 
-      if (!clash(keep, move) && !clash(c, partner)) break
+        const partner = rival.get(c)!
+        const mine = out[move - 1]!
+        out[move - 1] = out[c - 1]!
+        out[c - 1] = mine
 
-      // 換唔成，換返轉頭。次序要緊：先寫返 c 個位。
-      out[c - 1] = out[move - 1]!
-      out[move - 1] = mine
+        if (!clash(keep, move) && !clash(c, partner)) {
+          swapped = true
+          break
+        }
+
+        // 換唔成，換返轉頭。次序要緊：先寫返 c 個位。
+        out[c - 1] = out[move - 1]!
+        out[move - 1] = mine
+      }
     }
+
+    if (!swapped) break
   }
 
   return out
@@ -1234,7 +1247,7 @@ git commit -m "$(cat <<'EOF'
 小組賽引擎：逐組排名 + 交叉種子
 
 各組第 1 名排一梯次、各組第 2 名排下一梯次，砌完籤表再行修補 pass
-避免同組首圈撞返。2 組出 3 個嗰個避無可避嘅個案寫死做測試。
+避免同組首圈撞返。2–4 組 × 每組出 1／2／3 逐個組合驗過首圈零內戰。
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 EOF
@@ -1686,8 +1699,6 @@ function PoolSetup({
   const advances = poolCount === null ? [] : advanceOptions(count, poolCount)
   const sizes = poolCount === null ? [] : poolSizes(count, poolCount)
   const qualifiers = poolCount === null || advancePerPool === null ? 0 : poolCount * advancePerPool
-  // 6 個人入 8 人籤表，兩個輪空位食咗兩個，剩返 4 個一定有一對同組。
-  const forcedClash = poolCount === 2 && advancePerPool === 3
 
   return (
     <>
@@ -1736,15 +1747,6 @@ function PoolSetup({
             <span>·</span>
             <span>
               {qualifiers} 個人入籤表。交叉搵：A 組第 1 對 B 組第 2，同組嘅唔會一入淘汰就撞返。
-            </span>
-          </p>
-        )}
-        {forcedClash && (
-          <p className="note note--bad">
-            <span>⚠</span>
-            <span>
-              2 組出 3 個嘅話，一定有一場淘汰賽係同組內戰 ——
-              6 個人入 8 人籤表，兩個輪空位食咗兩個，避唔到。
             </span>
           </p>
         )}
@@ -1911,7 +1913,7 @@ Run: `npm run dev`，開 http://localhost:5173
 1. 開新賽事 → 揀「小組賽 + 淘汰」→ 應該見到兩行 chip
 2. 加 12 個人 → 「分幾多組」有 2/3/4/5/6；揀 3 組 → note 寫「12 個人分 3 組 = 4 / 4 / 4 人」
 3. 揀「頭 2 名」→ 預覽寫「12 個人 · 3 組 · 18 場小組賽 · 6 人入籤表 · 3 輪淘汰」
-4. 揀 2 組 + 頭 3 名 → 應該彈「一定有一場同組內戰」嗰個警告
+4. 揀 2 組 + 頭 3 名 → 預覽跟住變（2 組 · 6 人入籤表 · 3 輪淘汰）
 5. 撳「排賽程」→ 返到入分版；返開賽設定，每個名右邊有 A／B／C 章
 
 - [ ] **Step 8: 跑測試 + commit**
@@ -1922,8 +1924,8 @@ git add src/ui/Setup.tsx src/ui/styles/app.css
 git commit -m "$(cat <<'EOF'
 開賽設定：揀分幾多組同每組出幾多個
 
-兩行 chip，改組數會自動夾返合法嘅出線人數。2 組出 3 個嗰個
-避無可避嘅同組內戰喺度講明，唔扮冇事發生。
+兩行 chip，改組數會自動夾返合法嘅出線人數 —— 唔會出現
+「3 組每組出 3 個」但最細組得 2 個人呢種砌唔到嘅組合。
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 EOF
@@ -2490,8 +2492,8 @@ EOF
 - 純淘汰：隨機抽籤，邊個輪空都係隨機
 - 大循環 + 淘汰：種子跟循環賽排名，第 1 名對最後一個入圍嘅
 - 小組賽 + 淘汰：交叉搵 —— 各組第 1 名排一梯次、各組第 2 名排下一梯次，
-  同梯次之間用總成績分先後。砌完會自動調位，盡量令同組嘅唔會首圈就撞返。
-  （2 組每組出 3 個嗰陣避無可避：6 個人入 8 人籤表，兩個輪空位食咗兩個，一定有一場同組內戰。）
+  同梯次之間用總成績分先後。砌完會自動調位，令同組嘅首圈唔會撞返。
+  （淨係管首圈。之後幾輪冇得保證 —— 邊個贏咗上一場先知，唔會為咗避而重排籤表。）
 ```
 
 架構段落 `engine/` 加一行：
@@ -2551,7 +2553,7 @@ EOF
 ## 自查
 
 **Spec coverage：** 抽組（T2）、逐組賽程（T3）、遲到加人（T2 + T3 + T5）、「呢輪唞」新規則（T3）、
-逐組排名（T4）、交叉種子 + 修補 pass（T4）、避無可避個案（T4 測試 + T6 UI 警告）、
+逐組排名（T4）、交叉種子 + 修補 pass（T4）、首圈零內戰逐個組合驗（T4 測試）、
 `startTournament` 新簽名（T5）、`buildCut` 分流（T5）、`canStart`（T5）、label 改名（T5）、
 存檔向後相容（T1）、開賽設定（T6）、排名／電視／矩陣（T7）、賽程（T8）、
 入分／籤表（T9）、冠軍 bug（T7）、README（T10）—— 全部 spec 段落都有 task 對得返。

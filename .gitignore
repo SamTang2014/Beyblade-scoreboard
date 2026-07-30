@@ -13,3 +13,6 @@ dist/
 src/tmpprobe*.test.ts
 **/_probe/
 **/*probe*
+
+# SDD 工作區（subagent-driven-development 嘅臨時檔）
+.superpowers/
