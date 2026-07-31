@@ -672,11 +672,33 @@ table {
  * 兩邊格數一樣，而且格數同分數對唔上。而家兩條間度擺埋一齊就即刻比到高低。
  */
 .meter {
+  position: relative;
   display: flex;
-  gap: 3px;
   width: 100%;
-  height: 10px;
+  height: 12px;
   margin-top: var(--sp-3);
+}
+
+/*
+ * 刻度線：每 1 分一條。咁樣就數得出仲爭幾格，唔使睇字。
+ *
+ * ⚠ 啲格仔特登唔用 gap 分隔，改為用 inset box-shadow 畫條隙 ——
+ * gap 會食位，一食位啲格就唔再啱啱等於分數比例，啲刻度線就對唔上。
+ * box-shadow 唔佔 layout，所以幾何準到十足。
+ */
+.meter::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to right,
+    transparent 0,
+    transparent calc(100% / var(--meter-max, 4) - 1px),
+    var(--edge) calc(100% / var(--meter-max, 4) - 1px),
+    var(--edge) calc(100% / var(--meter-max, 4))
+  );
+  opacity: 0.55;
 }
 
 /* 紅邊由右邊起，向中間長 —— 同成個 arena 由外向內嘅方向一致。 */
@@ -686,11 +708,54 @@ table {
 
 .meter__seg {
   background: currentColor;
+  /* 用陰影唔用 gap —— 見上面。紅邊反方向長，所以條隙擺另一邊。 */
+  box-shadow: inset -2px 0 0 var(--slab);
+}
+
+.side--red .meter__seg {
+  box-shadow: inset 2px 0 0 var(--slab);
 }
 
 .meter__rest {
   background: currentColor;
   opacity: 0.16;
+}
+
+/*
+ * 逐 round 點贏。條間度講「贏緊幾多」，呢行講「點樣贏」。
+ * 加加埋埋一定等於上面個大字 —— 呢個就係佢存在嘅原因。
+ */
+.rlog {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: var(--sp-2);
+}
+
+.side--red .rlog {
+  justify-content: flex-end;
+}
+
+.rlog__item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25em;
+  padding: 0.1em 0.4em;
+  font-size: var(--step--2);
+  font-variation-settings: 'wdth' 90, 'wght' 700;
+  border: 1px solid currentColor;
+}
+
+.rlog__pts {
+  font-variation-settings: 'wdth' 100, 'wght' 800;
+}
+
+.side--blue .rlog {
+  color: var(--blue);
+}
+
+.side--red .rlog {
+  color: var(--red);
 }
 
 .side--blue .meter {

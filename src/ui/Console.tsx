@@ -320,7 +320,11 @@ function Side({
           「3 格亮」可以係 3 分（三次轉贏）又可以係 9 分（三次極限），
           同上面個大字對唔上。而家長度直接就係分數，兩邊擺埋一齊即刻比到。
         */}
-        <div className="meter" aria-hidden="true">
+        <div
+          className="meter"
+          aria-hidden="true"
+          style={{ ['--meter-max' as string]: String(meterMax) }}
+        >
           {mine.map((r, i) => (
             <span
               key={i}
@@ -334,6 +338,22 @@ function Side({
         </div>
 
         <div className="side__togo">{togo === 0 ? '贏咗' : `仲爭 ${togo} 分`}</div>
+
+        {/*
+          逐 round 點贏。條間度負責「贏緊幾多」，呢行負責「點樣贏」——
+          兩件事分開講，唔會再撈埋。撳錯咗要「撳返轉頭」之前特別有用：
+          冇呢行嘅話你根本睇唔出上一 round 記咗做乜。
+        */}
+        {mine.length > 0 && (
+          <div className="rlog">
+            {mine.map((r, i) => (
+              <span className="rlog__item" key={i}>
+                {FINISH_LABEL[r.finish]}
+                <span className="rlog__pts u-tab">{FINISH_POINTS[r.finish]}</span>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="finishes">
