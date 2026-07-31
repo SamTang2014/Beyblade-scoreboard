@@ -1,6 +1,13 @@
 import { useState } from 'react'
 import { useTournament } from '../storage/browserStore'
-import { byesInRound, inPlayOrder, isPureCircleSchedule, totalRounds } from '../engine/schedule'
+import {
+  byesInRound,
+  groupMatches,
+  inPlayOrder,
+  isPureCircleSchedule,
+  tiebreakMatches,
+  totalRounds,
+} from '../engine/schedule'
 import { matchScore, matchStatus, matchWinnerId } from '../engine/rules'
 import { poolLabel, poolsOf } from '../engine/pools'
 import { TopBar } from './components/TopBar'
@@ -28,7 +35,11 @@ export function Schedule({ id }: { id: string }) {
           (m) => m.stage === 'group' && m.aId !== null && poolOf.get(m.aId) === shownPool,
         )
 
-  const rounds = [...new Set(inPlayOrder(tournament.matches).map((m) => m.round))]
+  // 淨係循環階段先入輪次分組。淘汰同加賽嘅輪次各自由 1 重新數起，
+  // 撈埋一齊就會出現「八強擺喺第 1 輪入面」呢種鬼嘢。
+  // 淘汰賽有籤表版睇，加賽自己一格擺喺下面。
+  const rounds = [...new Set(inPlayOrder(groupMatches(tournament.matches)).map((m) => m.round))]
+  const tiebreaks = inPlayOrder(tiebreakMatches(tournament.matches))
   const laps = totalRounds(dialPlayers.length)
 
   // 中途加過人之後賽程唔再係轉盤轉出嚟，個轉盤會同下面啲場次對唔上，所以收起佢。
@@ -121,6 +132,24 @@ export function Schedule({ id }: { id: string }) {
                 poolOf={isPools ? poolOf : null}
               />
             ))}
+
+            {tiebreaks.length > 0 && (
+              <section>
+                <div className="round__head">
+                  <span className="u-eyebrow">加賽</span>
+                  <span className="round__bye">小組賽分唔開，嗰幾個人再打一次</span>
+                </div>
+                {tiebreaks.map((m) => (
+                  <MatchRow
+                    key={m.id}
+                    id={id}
+                    match={m}
+                    tournament={tournament}
+                    poolOf={isPools ? poolOf : null}
+                  />
+                ))}
+              </section>
+            )}
           </div>
         )}
       </div>
@@ -139,7 +168,9 @@ function RoundBlock({
   tournament: Tournament
   poolOf: Map<string, number | null> | null
 }) {
-  const matches = inPlayOrder(tournament.matches).filter((m) => m.round === round)
+  // 淨係循環階段。淘汰同加賽嘅輪次各自由 1 重新數起，唔隔開就會出現
+  // 「八強擺咗喺第 1 輪入面」。
+  const matches = inPlayOrder(groupMatches(tournament.matches)).filter((m) => m.round === round)
   const byes = byesInRound(tournament.matches, tournament.players, round)
 
   return (
@@ -184,7 +215,7 @@ function MatchRow({
 
   // 淘汰場次唔畫章 —— Player.pool 開波抽咗組之後就唔會再清，
   // 所以淨係睇 poolOf 唔夠，仲要 stage 係 'group' 先算數，唔係贏咗出線嗰個都會拖住舊組別章。
-  const pool = poolOf !== null && match.stage === 'group' ? poolOf.get(match.aId ?? '') : undefined
+  const pool = poolOf !== null && match.stage !== 'bracket' ? poolOf.get(match.aId ?? '') : undefined
 
   return (
     <a

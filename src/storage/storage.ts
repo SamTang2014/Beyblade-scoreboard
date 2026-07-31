@@ -262,7 +262,7 @@ export function parseTournament(v: unknown): Tournament {
     return {
       id: str(m.id, `第 ${i + 1} 場嘅 id`),
       // 舊檔案冇 stage，一律當循環賽。
-      stage: m.stage === 'bracket' ? 'bracket' : 'group',
+      stage: m.stage === 'bracket' || m.stage === 'tiebreak' ? m.stage : 'group',
       round: num(m.round, `第 ${i + 1} 場嘅輪次`),
       order: num(m.order, `第 ${i + 1} 場嘅次序`),
       aId,

@@ -21,8 +21,13 @@ export interface RoundResult {
   finish: FinishType
 }
 
-/** 循環階段定淘汰階段。純循環全部係 group，純淘汰全部係 bracket。 */
-export type MatchStage = 'group' | 'bracket'
+/**
+ * 循環階段、加賽、定淘汰階段。純循環全部係 group，純淘汰全部係 bracket。
+ *
+ * `tiebreak` = 小組賽並列打唔開，嗰幾個人再打嘅加賽。加賽場次唔計入小組排名表 ——
+ * 排名表照顯示「並列」，加賽淨係用嚟排並列嗰幾個邊個出線。
+ */
+export type MatchStage = 'group' | 'bracket' | 'tiebreak'
 
 export interface Match {
   /**

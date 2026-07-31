@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildCut, groupStageComplete, hasBracket, startTournament } from './tournament'
-import { advanceOptions, poolOptions, poolSeedOrder, poolStandings, poolsOf } from './pools'
+import { addTiebreak, buildCut, groupStageComplete, hasBracket, startTournament } from './tournament'
+import { advanceOptions, poolOptions, poolSeedOrder, poolStandings, poolsOf, tiesPending } from './pools'
 import { bracketMatches, groupMatches } from './schedule'
 import { bracketChampion, propagate } from './bracket'
 import { matchWinnerId } from './rules'
@@ -88,6 +88,23 @@ function playToEnd(t: Tournament): Tournament {
   throw new Error('打唔完 —— 可能推進卡死咗')
 }
 
+/**
+ * 出線線上面分唔開就排加賽，打完再睇 —— 打到分得開為止。
+ *
+ * 呢度每場都係藍邊贏，所以加賽一次就分到（排頭嗰個贏晒）。真實比賽可能要打多次，
+ * 所以照樣行個迴圈，順便驗證迴圈真係會停。
+ */
+function settleTies(t: Tournament, poolCount: number, advancePerPool: number): Tournament {
+  let cur = t
+  for (let guard = 0; guard < 5; guard++) {
+    if (!tiesPending(cur.players, cur.matches, poolCount, advancePerPool)) return cur
+    const added = addTiebreak(cur)
+    if (added === cur.matches) throw new Error('拆唔掂又排唔到加賽 —— 卡死咗')
+    cur = { ...cur, matches: winAll(added) }
+  }
+  throw new Error('加賽打咗 5 次都拆唔掂')
+}
+
 /** 學 Setup.tsx 除名：連佢打過嘅場次一齊剷。 */
 function remove(t: Tournament, ids: string[]): Tournament {
   return {
@@ -123,10 +140,11 @@ describe('每個介面做得出嘅組合都行到尾', () => {
         bad.push(`${tag}：場數 ${groupMatches(t.matches).length} ≠ ${want}`)
       }
 
-      const played = { ...t, matches: winAll(t.matches) }
+      const played = settleTies({ ...t, matches: winAll(t.matches) }, k, a)
       if (!groupStageComplete(played)) bad.push(`${tag}：小組賽打唔完`)
 
       const withCut = { ...played, matches: buildCut(played) }
+      if (bracketMatches(withCut.matches).length === 0) bad.push(`${tag}：砌唔到籤表`)
       const clash = bracketMatches(withCut.matches)
         .filter((m) => m.round === 1)
         .filter((m) => m.aId && m.bId && poolOf.get(m.aId) === poolOf.get(m.bId)).length
@@ -207,8 +225,11 @@ describe('除名到組唔夠人', () => {
     const a = poolsOf(t.players, 3)[0]!
     const cut = remove({ ...t, matches: winAll(t.matches) }, [a[0]!.id, a[1]!.id])
     expect(groupStageComplete(cut)).toBe(true)
-    expect(poolSeedOrder(cut.players, cut.matches, 3, 2)).toHaveLength(5)
-    expect(bracketChampion(playToEnd({ ...cut, matches: buildCut(cut) }).matches)).not.toBeNull()
+    const settled = settleTies(cut, 3, 2)
+    expect(poolSeedOrder(settled.players, settled.matches, 3, 2)).toHaveLength(5)
+    expect(
+      bracketChampion(playToEnd({ ...settled, matches: buildCut(settled) }).matches),
+    ).not.toBeNull()
   })
 
   it('某組剩 0 個：排名版出一張空表，唔會炸', () => {
@@ -219,7 +240,10 @@ describe('除名到組唔夠人', () => {
       a.map((p) => p.id),
     )
     expect(poolStandings(cut.players, cut.matches, 3).map((x) => x.rows.length)).toEqual([0, 2, 2])
-    expect(bracketChampion(playToEnd({ ...cut, matches: buildCut(cut) }).matches)).not.toBeNull()
+    const settled = settleTies(cut, 3, 1)
+    expect(
+      bracketChampion(playToEnd({ ...settled, matches: buildCut(settled) }).matches),
+    ).not.toBeNull()
   })
 })
 

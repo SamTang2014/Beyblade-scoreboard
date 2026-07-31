@@ -108,13 +108,16 @@ function ConsoleBody({
   // 淘汰賽講「決賽」「四強」，唔講「第 3 輪」—— 階段先係人記得住嗰樣嘢。
   // 小組賽再加返組別，唔係主持人分唔清而家叫緊邊組上台。
   const poolNo =
-    match.stage === 'group' && match.aId !== null
+    match.stage !== 'bracket' && match.aId !== null
       ? (tournament.players.find((p) => p.id === match.aId)?.pool ?? null)
       : null
   const stageLabel =
     match.stage === 'bracket'
       ? `${bracketRoundName(match.round, totalBracketRounds(tournament.matches))} · 第 ${match.order} 場`
-      : `${poolNo === null ? '' : `${poolLabel(poolNo)} 組 · `}第 ${match.round} 輪 · 全場第 ${position} 場`
+      : match.stage === 'tiebreak'
+        ? // 加賽唔講「第幾輪」—— 講明係加賽同埋第幾次，主持人先知點解要再打。
+          `${poolNo === null ? '' : `${poolLabel(poolNo)} 組`}加賽${match.round > 1 ? `（第 ${match.round} 次）` : ''} · 第 ${match.order} 場`
+        : `${poolNo === null ? '' : `${poolLabel(poolNo)} 組 · `}第 ${match.round} 輪 · 全場第 ${position} 場`
 
   // 改呢場會清走後面幾多場已經打完嘅。
   const willClear = downstreamWithScores(tournament.matches, match.id)

@@ -34,8 +34,9 @@ export function computeStandings(players: Player[], matches: Match[]): StandingR
   const headToHead = new Map<string, string>()
 
   for (const m of matches) {
-    // 淘汰階段唔入排名表 —— 排名係循環賽嘅嘢，淘汰賽睇籤表。
-    if (m.stage === 'bracket') continue
+    // 淨係循環階段入排名表。淘汰賽睇籤表；加賽係用嚟拆並列嘅，
+    // 計咗入去就會篡改返個排名表本身，變成「因為並列所以打，打完就唔並列」。
+    if (m.stage !== 'group') continue
     if (m.aId === null || m.bId === null) continue // 對手未定
 
     const winnerId = matchWinnerId(m)

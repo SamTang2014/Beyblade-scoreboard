@@ -135,8 +135,8 @@ export function generateSchedule(players: Player[]): Match[] {
  */
 export function mergeSchedule(existing: Match[], players: Player[]): Match[] {
   const known = new Set(players.map((p) => p.id))
-  // 淘汰階段唔關循環賽事，原封不動擺返出去。
-  const bracket = existing.filter((m) => m.stage === 'bracket')
+  // 淘汰同加賽都唔關循環賽事，原封不動擺返出去。
+  const others = existing.filter((m) => m.stage !== 'group')
   // 有選手俾人刪咗嘅話，佢嘅場次一齊消失。
   const kept = groupMatches(existing).filter(
     (m) => m.aId !== null && m.bId !== null && known.has(m.aId) && known.has(m.bId),
@@ -144,7 +144,7 @@ export function mergeSchedule(existing: Match[], players: Player[]): Match[] {
   const keptIds = new Set(kept.map((m) => m.id))
 
   const pool = generateSchedule(players).filter((m) => !keptIds.has(m.id))
-  if (pool.length === 0) return [...kept, ...bracket]
+  if (pool.length === 0) return [...kept, ...others]
 
   let round = kept.reduce((mx, m) => Math.max(mx, m.round), 0)
   const appended: Match[] = []
@@ -172,7 +172,7 @@ export function mergeSchedule(existing: Match[], players: Player[]): Match[] {
   }
 
   // 舊場次一律唔郁，連藍紅邊都唔換。
-  return [...kept, ...appended, ...bracket]
+  return [...kept, ...appended, ...others]
 }
 
 /**
@@ -202,6 +202,11 @@ export function groupMatches(matches: Match[]): Match[] {
 /** 淨係淘汰階段嘅場次。 */
 export function bracketMatches(matches: Match[]): Match[] {
   return matches.filter((m) => m.stage === 'bracket')
+}
+
+/** 淨係加賽場次。 */
+export function tiebreakMatches(matches: Match[]): Match[] {
+  return matches.filter((m) => m.stage === 'tiebreak')
 }
 
 /**

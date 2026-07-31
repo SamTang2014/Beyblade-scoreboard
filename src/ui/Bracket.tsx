@@ -2,7 +2,10 @@ import { useTournament } from '../storage/browserStore'
 import { bracketMatches } from '../engine/schedule'
 import { bracketChampion, bracketRoundName, totalBracketRounds } from '../engine/bracket'
 import { matchScore, matchStatus, matchWinnerId } from '../engine/rules'
-import { buildCut, groupStageComplete, hasBracket } from '../engine/tournament'
+import { Standings } from './components/Standings'
+import { addTiebreak, buildCut, groupStageComplete, hasBracket, poolTies } from '../engine/tournament'
+import { poolLabel, poolStandings } from '../engine/pools'
+import type { TieState } from '../engine/pools'
 import { TopBar } from './components/TopBar'
 import { NotFound } from './Setup'
 import type { Match, Tournament } from '../engine/types'
@@ -19,9 +22,12 @@ export function Bracket({ id }: { id: string }) {
 
   const bracket = bracketMatches(tournament.matches)
   const ready = hasBracket(tournament)
+  // 出線線上面分唔開嘅組。有一組拆唔掂就砌唔到籤表。
+  const ties = poolTies(tournament).filter((s) => !s.resolved)
   const canBuild =
     (tournament.mode === 'groupThenKnockout' || tournament.mode === 'poolsThenKnockout') &&
     !ready &&
+    ties.length === 0 &&
     groupStageComplete(tournament)
 
   return (
@@ -33,7 +39,14 @@ export function Bracket({ id }: { id: string }) {
         mode={tournament.mode}
       />
       <div className="page page--wide stack">
-        {!ready ? (
+        {!ready && ties.length > 0 && groupStageComplete(tournament) ? (
+          <TieBreakers
+            id={id}
+            tournament={tournament}
+            ties={ties}
+            onDraw={() => update((t) => ({ ...t, matches: addTiebreak(t) }))}
+          />
+        ) : !ready ? (
           <NotYet
             tournament={tournament}
             canBuild={canBuild}
@@ -218,5 +231,107 @@ function BracketMatch({
       {side('a')}
       {side('b')}
     </a>
+  )
+}
+
+/**
+ * 出線線上面分唔開就要加賽。
+ *
+ * 點解要擋住唔俾砌籤表：唔擋嘅話會靜靜雞照排序攞頭幾個出線，而排序最後
+ * fallback 係個名 —— 即係「邊個出線」變成睇個名點串。喺一班細路面前，
+ * 呢個係最唔應該嘅做法。
+ */
+function TieBreakers({
+  id,
+  tournament,
+  ties,
+  onDraw,
+}: {
+  id: string
+  tournament: Tournament
+  ties: TieState[]
+  onDraw: () => void
+}) {
+  const nameOf = (pid: string) =>
+    tournament.players.find((p) => p.id === pid)?.name ?? '？'
+  const tables = poolStandings(
+    tournament.players,
+    tournament.matches,
+    tournament.poolCount ?? 0,
+  )
+  // 有邊組排咗加賽但仲未打完 —— 打緊就唔好再彈粒「排加賽」出嚟。
+  const waiting = ties.some((s) => s.attempt > 0 && !s.played)
+
+  return (
+    <>
+      {ties.map((s) => {
+        const rows = tables.find((t) => t.pool === s.pool)?.rows ?? []
+        const tiedRows = rows.filter((r) => s.ids.includes(r.playerId))
+        return (
+          <section key={s.pool} className="stack">
+            <div className="verdict chamfer">
+              <div>
+                <span className="u-eyebrow">{poolLabel(s.pool)} 組分唔開</span>
+                <div className="verdict__who">
+                  {s.ids.length} 個人爭 {s.slots} 個位
+                </div>
+                <span className="u-eyebrow">
+                  {s.attempt === 0
+                    ? '勝場、得分、失分、分差四樣都一樣，要打加賽先分到'
+                    : s.played
+                      ? `第 ${s.attempt} 次加賽又分唔開`
+                      : `第 ${s.attempt} 次加賽打緊`}
+                </span>
+              </div>
+            </div>
+
+            <Standings rows={tiedRows} />
+
+            {s.matches.length > 0 && (
+              <section>
+                <h2 className="u-eyebrow">第 {s.attempt} 次加賽</h2>
+                {s.matches.map((m) => (
+                  <a className="mrow" key={m.id} href={`#/t/${id}/m/${m.id}`}>
+                    <span className="mrow__side">{nameOf(m.aId ?? '')}</span>
+                    <span className="mrow__score u-tab">
+                      {matchWinnerId(m) === null
+                        ? '對'
+                        : `${matchScore(m).a}–${matchScore(m).b}`}
+                    </span>
+                    <span className="mrow__side mrow__side--b">{nameOf(m.bId ?? '')}</span>
+                  </a>
+                ))}
+              </section>
+            )}
+
+            {s.attempt >= 2 && s.played && (
+              <p className="note">
+                <span>·</span>
+                <span>
+                  打咗 {s.attempt} 次都分唔開。可以再打，或者你哋自己抽籤決定，
+                  然後照抽籤結果入返落加賽度 —— 個 app 唔會幫你抽。
+                </span>
+              </p>
+            )}
+          </section>
+        )
+      })}
+
+      {!waiting && (
+        <div className="btnrow">
+          <button className="btn btn--primary btn--big chamfer" onClick={onDraw}>
+            {ties.some((s) => s.attempt > 0) ? '再排多一次加賽' : '排加賽'}
+          </button>
+        </div>
+      )}
+
+      <p className="note">
+        <span>·</span>
+        <span>
+          加賽打完晒先砌得到籤表。加賽成績唔會計入小組排名表 ——
+          嗰度照顯示並列，加賽淨係用嚟排邊個出線。
+        </span>
+      </p>
+    </>
   )
 }

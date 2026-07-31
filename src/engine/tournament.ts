@@ -5,9 +5,13 @@ import {
   assignLatecomers,
   buildPoolSchedule,
   drawPools,
+  nextTiebreak,
   poolOptions,
   poolSeedOrder,
+  tieStates,
+  tiesPending,
 } from './pools'
+import type { TieState } from './pools'
 import { computeStandings, isTournamentComplete } from './standings'
 import type { Match, Player, Tournament, TournamentMode } from './types'
 
@@ -126,6 +130,9 @@ export function buildCut(t: Tournament): Match[] {
 function cutSeeds(t: Tournament): string[] {
   if (t.mode === 'poolsThenKnockout') {
     if (t.poolCount === null || t.advancePerPool === null) return []
+    // 有組拆唔掂就唔准砌 —— 唔擋嘅話會靜靜雞照排序攞頭幾個，
+    // 而排序最後 fallback 係個名，即係「邊個出線」變成睇個名點串。
+    if (tiesPending(t.players, t.matches, t.poolCount, t.advancePerPool)) return []
     return poolSeedOrder(t.players, t.matches, t.poolCount, t.advancePerPool)
   }
   if (t.cutSize === null) return []
@@ -148,4 +155,23 @@ export function nextPlayable(matches: Match[]): Match | null {
 /** 呢個模式有冇排名表可以睇。 */
 export function hasStandings(mode: TournamentMode): boolean {
   return mode !== 'knockout'
+}
+
+/**
+ * 邊幾組喺出線線上面分唔開。
+ *
+ * 介面唔使識分模式：唔係小組賽、或者設定未齊，一律返吉。
+ */
+export function poolTies(t: Tournament): TieState[] {
+  if (t.mode !== 'poolsThenKnockout') return []
+  if (t.poolCount === null || t.advancePerPool === null) return []
+  return tieStates(t.players, t.matches, t.poolCount, t.advancePerPool)
+}
+
+/** 排下一次加賽，返返成個新場次表。冇嘢要排就原封不動。 */
+export function addTiebreak(t: Tournament): Match[] {
+  if (t.mode !== 'poolsThenKnockout') return t.matches
+  if (t.poolCount === null || t.advancePerPool === null) return t.matches
+  const more = nextTiebreak(t.players, t.matches, t.poolCount, t.advancePerPool)
+  return more.length === 0 ? t.matches : [...t.matches, ...more]
 }
