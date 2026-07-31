@@ -10,6 +10,7 @@ import {
   startTournament,
 } from './tournament'
 import { bracketMatches, groupMatches } from './schedule'
+import { poolsOf } from './pools'
 import { propagate } from './bracket'
 import { matchStatus, matchWinnerId } from './rules'
 import type { Match, Player, Tournament, TournamentMode } from './types'
@@ -149,8 +150,21 @@ describe('小組賽 + 淘汰', () => {
     expect(t.matches).toHaveLength(18)
   })
 
-  it('補返新場次唔會重抽組', () => {
-    const t = started(8, 2, 2)
+  /** 入咗一場分，之後就唔准重抽。 */
+  function withOneResult(t: Tournament): Tournament {
+    const first = t.matches[0]!
+    return {
+      ...t,
+      matches: t.matches.map((m) =>
+        m.id === first.id
+          ? { ...m, rounds: [{ winnerId: m.aId!, finish: 'xtreme' as const }] }
+          : m,
+      ),
+    }
+  }
+
+  it('開咗波之後補返新場次唔會重抽組', () => {
+    const t = withOneResult(started(8, 2, 2))
     const before = new Map(t.players.map((p) => [p.id, p.pool]))
     const withLate = {
       ...t,
@@ -162,6 +176,37 @@ describe('小組賽 + 淘汰', () => {
       expect(p.pool).toBe(before.get(p.id))
     }
     expect(after.players.find((p) => p.id === 'late')!.pool).not.toBeNull()
+  })
+
+  it('入咗分就唔准重抽 —— 就算改咗組數都唔郁', () => {
+    const t = withOneResult(started(8, 2, 2))
+    const before = new Map(t.players.map((p) => [p.id, p.pool]))
+    const after = startTournament({ ...t, poolCount: 4 }, rng)
+    for (const p of after.players) expect(p.pool).toBe(before.get(p.id))
+  })
+
+  /**
+   * 未入分之前改組數，一定要重抽。
+   *
+   * 本來呢度睇「有冇人已經有組」，抽完 2 組再改做 3 組就出事：人人都仲有組，
+   * 於是行咗補遲到嗰條路，但冇人要補 —— 結果 C 組空咗、場次仲係 2 組嗰批 30 場，
+   * 而開賽設定明明應承咗你 3 組 18 場。
+   */
+  it('未入分之前改組數會重抽，唔會留低空組', () => {
+    const t = started(12, 2, 2)
+    expect(poolsOf(t.players, 2).map((p) => p.length)).toEqual([6, 6])
+
+    const after = startTournament({ ...t, poolCount: 3 }, rng)
+    expect(poolsOf(after.players, 3).map((p) => p.length)).toEqual([4, 4, 4])
+    // 3 組每組 4 個人 = 3 × 6 = 18 場，同開賽設定嘅預覽對得返。
+    expect(groupMatches(after.matches)).toHaveLength(18)
+  })
+
+  it('未入分之前減組數一樣重抽啱', () => {
+    const t = started(12, 3, 2)
+    const after = startTournament({ ...t, poolCount: 2 }, rng)
+    expect(poolsOf(after.players, 2).map((p) => p.length)).toEqual([6, 6])
+    expect(groupMatches(after.matches)).toHaveLength(30)
   })
 
   it('打晒小組賽就砌到籤表，冠軍出到', () => {

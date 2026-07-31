@@ -85,11 +85,16 @@ export function startTournament(t: Tournament, rng: () => number): StartResult {
       }
     case 'poolsThenKnockout': {
       const k = t.poolCount ?? 0
-      // 第一次排賽程先抽組。之後撳「補返新場次」係補遲到嗰啲人，唔可以重抽 ——
-      // 重抽會令已經打咗嘅場次變成跨組對戰，成個小組賽即刻報廢。
-      const drawn = t.players.some((p) => p.pool !== null)
-        ? assignLatecomers(t.players, k)
-        : drawPools(t.players, k, rng)
+      // 一入咗分就唔可以重抽 —— 重抽會令已經打咗嘅場次變成跨組對戰，
+      // 成個小組賽即刻報廢。所以之後撳「補返新場次」淨係補遲到嗰啲人。
+      //
+      // 但係未入分之前每次都要重抽。呢度本來睇「有冇人已經有組」，
+      // 咁就出事：抽完 2 組，返去改做 3 組再撳「排賽程」，人人都仲有組，
+      // 於是行咗補遲到嗰條路 —— 但冇人要補，結果 C 組空咗、場次仲係 2 組嗰批，
+      // 而開賽設定明明應承咗你 3 組。開賽設定啲掣本身都係「入咗分先鎖」，
+      // 呢度跟返同一條界先至一致。
+      const started = t.matches.some((m) => m.rounds.length > 0)
+      const drawn = started ? assignLatecomers(t.players, k) : drawPools(t.players, k, rng)
       return { players: drawn, matches: buildPoolSchedule(t.matches, drawn, k) }
     }
   }
