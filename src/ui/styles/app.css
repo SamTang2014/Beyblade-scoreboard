@@ -662,34 +662,42 @@ table {
   min-height: 1.5em;
 }
 
-.pips {
+/*
+ * 入分版每邊嗰條間度。
+ *
+ * 長度 = 分數。一格 = 一 round，格闊 = 嗰 round 值幾多分
+ * （極限 3 分嗰格闊過轉贏 1 分嗰格三倍）。淡色嗰橛 = 仲爭幾多分。
+ *
+ * 舊做法係兩邊都畫晒全部 round、自己贏嗰啲亮、對手贏嗰啲淡 —— 一面鏡，
+ * 兩邊格數一樣，而且格數同分數對唔上。而家兩條間度擺埋一齊就即刻比到高低。
+ */
+.meter {
   display: flex;
-  gap: 4px;
-  margin-top: var(--sp-3);
-  min-height: 10px;
-}
-
-.side--red .pips {
-  justify-content: flex-end;
-}
-
-.pip {
+  gap: 3px;
   width: 100%;
-  max-width: 26px;
-  height: 8px;
+  height: 10px;
+  margin-top: var(--sp-3);
+}
+
+/* 紅邊由右邊起，向中間長 —— 同成個 arena 由外向內嘅方向一致。 */
+.side--red .meter {
+  flex-direction: row-reverse;
+}
+
+.meter__seg {
   background: currentColor;
-  opacity: 0.28;
 }
 
-.pip--won {
-  opacity: 1;
+.meter__rest {
+  background: currentColor;
+  opacity: 0.16;
 }
 
-.side--blue .pips {
+.side--blue .meter {
   color: var(--blue);
 }
 
-.side--red .pips {
+.side--red .meter {
   color: var(--red);
 }
 

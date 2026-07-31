@@ -63,6 +63,9 @@ function ConsoleBody({
   const score = matchScore(match)
   const winnerId = matchWinnerId(match)
   const position = order.findIndex((m) => m.id === match.id) + 1
+  // 通常 4 分滿。但 2 分嗰陣打一次極限（3 分）會去到 5 分，
+  // 所以條間度要就返實際最高分，唔係最後嗰格會爆出去。
+  const meterMax = Math.max(MATCH_TARGET, score.a, score.b)
 
   /**
    * 改完一場之後收尾：淘汰賽要清走下游已入嘅分再重新推進，
@@ -186,6 +189,7 @@ function ConsoleBody({
             rounds={match.rounds}
             playerId={match.aId}
             locked={winnerId !== null || needsConfirm}
+            meterMax={meterMax}
             onRecord={record}
           />
           <Side
@@ -196,6 +200,7 @@ function ConsoleBody({
             rounds={match.rounds}
             playerId={match.bId}
             locked={winnerId !== null || needsConfirm}
+            meterMax={meterMax}
             onRecord={record}
           />
         </div>
@@ -282,6 +287,7 @@ function Side({
   rounds,
   playerId,
   locked,
+  meterMax,
   onRecord,
 }: {
   tone: 'blue' | 'red'
@@ -291,9 +297,12 @@ function Side({
   rounds: Match['rounds']
   playerId: string | null
   locked: boolean
+  /** 條間度嘅滿刻度。兩邊要一樣先比得到。 */
+  meterMax: number
   onRecord: (winnerId: string, finish: FinishType) => void
 }) {
   const togo = Math.max(0, MATCH_TARGET - score)
+  const mine = rounds.filter((r) => r.winnerId === playerId)
 
   return (
     <div className={`side side--${tone}`}>
@@ -301,14 +310,30 @@ function Side({
         <span className="u-eyebrow side__eyebrow">{label}</span>
         <h2 className="side__name">{name}</h2>
         <div className="side__score u-tab">{score}</div>
-        <div className="side__togo">{togo === 0 ? '贏咗' : `仲爭 ${togo} 分`}</div>
 
-        {/* 逐 round 嘅歷史：亮起嗰粒就係呢邊贏嗰 round。 */}
-        <div className="pips" aria-hidden="true">
-          {rounds.map((r, i) => (
-            <span key={i} className={r.winnerId === playerId ? 'pip pip--won' : 'pip'} />
+        {/*
+          條間度嘅長度 = 分數，一格 = 一 round，格闊 = 嗰 round 值幾多分。
+          極限係 3 分，格就闊過轉贏（1 分）三倍。
+
+          本來呢度係兩邊都畫晒全部 round、自己贏嗰啲亮、對手贏嗰啲淡 ——
+          即係一面鏡，兩邊格數一模一樣。而且一格一 round 同分數冇關係：
+          「3 格亮」可以係 3 分（三次轉贏）又可以係 9 分（三次極限），
+          同上面個大字對唔上。而家長度直接就係分數，兩邊擺埋一齊即刻比到。
+        */}
+        <div className="meter" aria-hidden="true">
+          {mine.map((r, i) => (
+            <span
+              key={i}
+              className="meter__seg"
+              style={{ flexGrow: FINISH_POINTS[r.finish] }}
+            />
           ))}
+          {score < meterMax && (
+            <span className="meter__rest" style={{ flexGrow: meterMax - score }} />
+          )}
         </div>
+
+        <div className="side__togo">{togo === 0 ? '贏咗' : `仲爭 ${togo} 分`}</div>
       </div>
 
       <div className="finishes">
