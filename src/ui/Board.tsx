@@ -5,6 +5,8 @@ import { matchScore, matchWinnerId } from '../engine/rules'
 import { computeStandings, isTournamentComplete } from '../engine/standings'
 import { bracketChampion } from '../engine/bracket'
 import { poolLabel, poolStandings } from '../engine/pools'
+import { poolTies } from '../engine/tournament'
+import { TiebreakResult } from './components/TiebreakResult'
 import { Standings } from './components/Standings'
 import { NotFound } from './Setup'
 import type { StandingRow, Tournament } from '../engine/types'
@@ -35,11 +37,28 @@ export function Board({ id }: { id: string }) {
       ? poolStandings(tournament.players, tournament.matches, tournament.poolCount)
       : null
   const champText = complete ? championLine(tournament, rows) : ''
+  const ties = poolTies(tournament)
+
+  /**
+   * 打緊嗰場係加賽嘅話，喺個大比分上面講明。
+   *
+   * 電視係打俾企喺度睇嘅人，唔講嘅話佢哋淨係見到「呢兩個人頭先明明打過」，
+   * 唔知係加賽 —— 反而以為個 app 出錯。
+   */
+  const currentTie =
+    current !== null && current.stage === 'tiebreak' && current.aId !== null
+      ? (tournament.players.find((p) => p.id === current.aId)?.pool ?? null)
+      : null
 
   return (
     <div className="board">
       {current !== null ? (
         <section className="board__now chamfer">
+          {currentTie !== null && (
+            <div className="board__tag u-eyebrow">
+              {poolLabel(currentTie)} 組加賽 · 分唔開，再打過
+            </div>
+          )}
           <div className="board__who board__who--blue">{nameOf(current.aId)}</div>
           <div className="board__score u-tab">
             {matchScore(current).a} — {matchScore(current).b}
@@ -75,6 +94,13 @@ export function Board({ id }: { id: string }) {
                     compact
                     cutAfter={tournament.advancePerPool ?? undefined}
                   />
+                  {(() => {
+                    const tie = ties.find((t) => t.pool === table.pool)
+                    // 電視上面撳唔到嘢，所以唔傳 matchHref。
+                    return tie === undefined || tie.matches.length === 0 ? null : (
+                      <TiebreakResult tie={tie} players={tournament.players} />
+                    )
+                  })()}
                 </div>
               ))}
             </div>

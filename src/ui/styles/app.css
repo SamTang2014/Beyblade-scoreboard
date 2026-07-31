@@ -1580,3 +1580,15 @@ table {
   border: 1px solid var(--gold);
   white-space: nowrap;
 }
+
+/*
+ * 電視上面「呢場係加賽」嗰條標。
+ *
+ * .board__now 係三格 grid（藍邊／比分／紅邊），所以呢條標要 span 晒
+ * 三格自己一行，唔係會塞咗入藍邊嗰格度。
+ */
+.board__tag {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--gold-text);
+}
