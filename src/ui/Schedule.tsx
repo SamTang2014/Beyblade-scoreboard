@@ -45,35 +45,42 @@ export function Schedule({ id }: { id: string }) {
         mode={tournament.mode}
       />
       <div className="page stack">
+        {/*
+          組別掣要擺喺轉盤外面。擺咗入去嘅話：A 組中途加過人 → A 組唔再係乾淨圓周法
+          → 收起轉盤 → 連啲掣都一齊唔見 → 你困死喺 A 組，撳唔返去 B 組。
+          轉盤收唔收起係逐組嘅事，揀邊組唔係。
+        */}
+        {pools !== null && (
+          <div className="chips" style={{ justifyContent: 'center' }}>
+            {pools.map((_, i) => (
+              <button
+                key={i}
+                className="chip chamfer-sm"
+                aria-pressed={shownPool === i + 1}
+                onClick={() => {
+                  setShownPool(i + 1)
+                  setShownRound(1)
+                }}
+              >
+                {poolLabel(i + 1)} 組
+              </button>
+            ))}
+          </div>
+        )}
+
         {!showDial && tournament.matches.length > 0 && (
           <p className="note">
             <span>·</span>
             <span>
-              呢個賽程中途加過人，補返嘅場次係插喺尾嘅，唔再係一個乾淨嘅圓周法轉盤，
-              所以唔畫轉盤住。下面每一輪都仍然冇人要打兩場。
+              {pools === null
+                ? '呢個賽程中途加過人，補返嘅場次係插喺尾嘅，唔再係一個乾淨嘅圓周法轉盤，所以唔畫轉盤住。下面每一輪都仍然冇人要打兩場。'
+                : `${poolLabel(shownPool)} 組中途加過人，補返嘅場次係插喺尾嘅，唔再係一個乾淨嘅圓周法轉盤，所以唔畫轉盤住。下面每一輪都仍然冇人要打兩場。`}
             </span>
           </p>
         )}
 
         {showDial && (
           <section>
-            {pools !== null && (
-              <div className="chips" style={{ justifyContent: 'center', marginBottom: 'var(--sp-3)' }}>
-                {pools.map((_, i) => (
-                  <button
-                    key={i}
-                    className="chip chamfer-sm"
-                    aria-pressed={shownPool === i + 1}
-                    onClick={() => {
-                      setShownPool(i + 1)
-                      setShownRound(1)
-                    }}
-                  >
-                    {poolLabel(i + 1)} 組
-                  </button>
-                ))}
-              </div>
-            )}
             <CircleDial
               players={dialPlayers}
               round={shownRound}

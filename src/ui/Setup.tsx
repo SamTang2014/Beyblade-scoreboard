@@ -357,16 +357,24 @@ function Preview({
 }) {
   const cells: { num: number; label: string }[] = [{ num: count, label: '個人' }]
 
-  if (mode === 'poolsThenKnockout' && poolCount !== null) {
+  // 組數同出線人數要對得返而家嘅人數先寫得出個預覽。
+  // 除名到人數跌咗之後個舊設定會過晒時：12 個人揀咗 6 組，除到剩 8 個，
+  // 唔 check 就會寫「8 個人 · 6 組 · 12 人入籤表」—— 8 個人邊度變 12 個出嚟。
+  // 排唔到賽程本身有 canStart 擋住，但個預覽唔應該喺度講大話。
+  const poolsUsable =
+    mode === 'poolsThenKnockout' &&
+    poolCount !== null &&
+    poolOptions(count).includes(poolCount) &&
+    advancePerPool !== null &&
+    advanceOptions(count, poolCount).includes(advancePerPool)
+
+  if (poolsUsable && poolCount !== null && advancePerPool !== null) {
     const sizes = poolSizes(count, poolCount)
-    const groupGames = sizes.reduce((n, s) => n + totalMatches(s), 0)
     cells.push({ num: poolCount, label: '組' })
-    cells.push({ num: groupGames, label: '場小組賽' })
-    if (advancePerPool !== null) {
-      const inBracket = poolCount * advancePerPool
-      cells.push({ num: inBracket, label: '人入籤表' })
-      if (inBracket >= 2) cells.push({ num: bracketRounds(inBracket), label: '輪淘汰' })
-    }
+    cells.push({ num: sizes.reduce((n, s) => n + totalMatches(s), 0), label: '場小組賽' })
+    const inBracket = poolCount * advancePerPool
+    cells.push({ num: inBracket, label: '人入籤表' })
+    if (inBracket >= 2) cells.push({ num: bracketRounds(inBracket), label: '輪淘汰' })
   }
 
   if (mode === 'roundRobin' || mode === 'groupThenKnockout') {
@@ -467,13 +475,25 @@ function PoolSetup({
             </button>
           ))}
         </div>
-        {sizes.length > 0 && (
-          <p className="note">
-            <span>·</span>
+        {poolCount !== null && !pools.includes(poolCount) ? (
+          /* 除名到人數跌咗，原本揀嘅組數就分唔到 —— 唔講嘅話啲 chip 得個樣冇一粒撳低，
+             用戶淨係見到「排賽程」冇反應。 */
+          <p className="note note--bad">
+            <span>⚠</span>
             <span>
-              {count} 個人分 {poolCount} 組 = {sizes.join(' / ')} 人。抽籤決定邊個同邊個一組。
+              而家揀咗 {poolCount} 組，但得返 {count} 個人，最多只可以分{' '}
+              {Math.max(...pools)} 組。撳返上面其中一個。
             </span>
           </p>
+        ) : (
+          sizes.length > 0 && (
+            <p className="note">
+              <span>·</span>
+              <span>
+                {count} 個人分 {poolCount} 組 = {sizes.join(' / ')} 人。抽籤決定邊個同邊個一組。
+              </span>
+            </p>
+          )
         )}
       </div>
 
