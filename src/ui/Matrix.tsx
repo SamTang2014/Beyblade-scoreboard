@@ -143,6 +143,16 @@ function Cell({ row, col, match }: { row: Player; col: Player; match: Match | un
   )
 }
 
+/**
+ * 呢張表係循環階段嘅交叉表，所以「勝」欄淨係計循環階段。
+ *
+ * 唔隔開嘅話會計埋淘汰賽嘅勝場 —— 而淘汰賽嘅比分喺表入面根本冇格擺
+ * （場次 id 唔同，對唔到位），所以個總數會同上面啲格加唔埋。
+ * 小組賽度仲離譜：A 組嗰張表嘅「勝」會計埋佢喺淘汰賽贏 B 組人嗰場。
+ */
 function winsOf(playerId: string, matches: Match[]): number {
-  return matches.reduce((n, m) => n + (matchWinnerId(m) === playerId ? 1 : 0), 0)
+  return matches.reduce(
+    (n, m) => n + (m.stage === 'group' && matchWinnerId(m) === playerId ? 1 : 0),
+    0,
+  )
 }

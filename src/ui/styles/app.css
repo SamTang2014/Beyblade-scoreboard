@@ -1533,7 +1533,6 @@ table {
   place-items: center;
   min-width: 1.6em;
   padding: 0.1em 0.35em;
-  margin-inline-start: var(--sp-2);
   font-size: var(--step--2);
   font-variation-settings: 'wdth' 100, 'wght' 700;
   letter-spacing: 0.04em;

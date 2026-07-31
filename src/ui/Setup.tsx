@@ -147,6 +147,14 @@ export function Setup({ id }: { id: string }) {
                     poolCount: m === 'poolsThenKnockout' ? (t.poolCount ?? defaultPools) : null,
                     advancePerPool:
                       m === 'poolsThenKnockout' ? (t.advancePerPool ?? defaultAdvance) : null,
+                    // 連選手身上嘅組別都要清。唔清嘅話，轉咗做單循環之後名單仲會出
+                    // A／B／C 章、入分版仲會寫「A 組 · 第 1 輪」、連「呢輪唞」都會
+                    // 當啲人仲係分開幾組咁計。存檔讀返嗰陣本身會清，但你唔會 reload
+                    // 先繼續玩。
+                    players:
+                      m === 'poolsThenKnockout'
+                        ? t.players
+                        : t.players.map((p) => (p.pool === null ? p : { ...p, pool: null })),
                   }))
                 }
               >
