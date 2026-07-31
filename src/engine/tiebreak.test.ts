@@ -131,7 +131,7 @@ describe('加賽點計', () => {
     const [state] = tieStates(ABC, all, 3, 2)
     expect(state!.played).toBe(true)
     expect(state!.resolved).toBe(true)
-    expect(state!.order).toEqual(['A', 'B', 'C'])
+    expect(state!.results.map((r) => r.id)).toEqual(['A', 'B', 'C'])
     expect(tiesPending(ABC, all, 3, 2)).toBe(false)
   })
 
@@ -141,7 +141,7 @@ describe('加賽點計', () => {
     const all = [...CYCLE, ...tb([['A', 'B', 3], ['B', 'C', 0], ['C', 'A', 1]])]
     const [state] = tieStates(ABC, all, 3, 2)
     expect(state!.resolved).toBe(true)
-    expect(state!.order).toEqual(['B', 'C', 'A'])
+    expect(state!.results.map((r) => r.id)).toEqual(['B', 'C', 'A'])
   })
 
   it('加賽又循環又全部 4–0 → 分差都一樣，拆唔掂，要再打', () => {
@@ -179,7 +179,7 @@ describe('加賽點計', () => {
     const [state] = tieStates(ABC, all, 3, 2)
     expect(state!.attempt).toBe(2)
     expect(state!.resolved).toBe(true)
-    expect(state!.order).toEqual(['A', 'B', 'C'])
+    expect(state!.results.map((r) => r.id)).toEqual(['A', 'B', 'C'])
   })
 })
 

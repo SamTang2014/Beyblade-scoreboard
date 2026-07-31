@@ -3,9 +3,7 @@ import { computeStandings, completedCount, isTournamentComplete } from '../engin
 import { bracketChampion } from '../engine/bracket'
 import { poolLabel, poolStandings } from '../engine/pools'
 import { poolTies } from '../engine/tournament'
-import { matchScore, matchWinnerId } from '../engine/rules'
-import type { TieState } from '../engine/pools'
-import type { Tournament } from '../engine/types'
+import { TiebreakResult } from './components/TiebreakResult'
 import { downloadJson } from '../lib/download'
 import { TopBar } from './components/TopBar'
 import { Standings } from './components/Standings'
@@ -117,10 +115,16 @@ export function Table({ id }: { id: string }) {
                   {poolLabel(table.pool)} 組
                 </h2>
                 <Standings rows={table.rows} cutAfter={tournament.advancePerPool ?? undefined} />
-                <TiebreakTable
-                  tie={ties.find((t) => t.pool === table.pool)}
-                  tournament={tournament}
-                />
+                {(() => {
+                  const tie = ties.find((t) => t.pool === table.pool)
+                  return tie === undefined || tie.matches.length === 0 ? null : (
+                    <TiebreakResult
+                      tie={tie}
+                      players={tournament.players}
+                      matchHref={(mid) => `#/t/${id}/m/${mid}`}
+                    />
+                  )
+                })()}
               </section>
             ))}
           </div>
@@ -143,47 +147,5 @@ export function Table({ id }: { id: string }) {
         )}
       </div>
     </>
-  )
-}
-
-/**
- * 加賽結果，另一張表。
- *
- * 特登唔撈入小組排名表：小組排名表要照實顯示「並列」，加賽淨係用嚟排
- * 邊個出線。撈埋一齊嘅話會變成「因為並列所以打，打完就唔並列」，
- * 睇嘅人根本唔知當初點解要加賽。
- */
-function TiebreakTable({ tie, tournament }: { tie: TieState | undefined; tournament: Tournament }) {
-  if (tie === undefined || tie.matches.length === 0) return null
-
-  const nameOf = (pid: string | null) =>
-    pid === null ? '？' : (tournament.players.find((p) => p.id === pid)?.name ?? '？')
-
-  return (
-    <section style={{ marginTop: 'var(--sp-4)' }}>
-      <h3 className="u-eyebrow">
-        加賽{tie.attempt > 1 ? `（第 ${tie.attempt} 次）` : ''} · {tie.ids.length} 個人爭{' '}
-        {tie.slots} 個位
-      </h3>
-      {tie.matches.map((m) => (
-        <div className="mrow" key={m.id}>
-          <span className="mrow__side">{nameOf(m.aId)}</span>
-          <span className="mrow__score u-tab">
-            {matchWinnerId(m) === null ? '對' : `${matchScore(m).a}–${matchScore(m).b}`}
-          </span>
-          <span className="mrow__side mrow__side--b">{nameOf(m.bId)}</span>
-        </div>
-      ))}
-      <p className="note">
-        <span>·</span>
-        <span>
-          {!tie.played
-            ? '加賽仲未打完。'
-            : tie.resolved
-              ? `加賽排出嚟：${tie.order!.map(nameOf).join(' → ')}，頭 ${tie.slots} 個出線。`
-              : '加賽又分唔開，要再打多一次。'}
-        </span>
-      </p>
-    </section>
   )
 }

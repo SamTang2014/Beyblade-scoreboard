@@ -6,6 +6,7 @@ import { Standings } from './components/Standings'
 import { addTiebreak, buildCut, groupStageComplete, hasBracket, poolTies } from '../engine/tournament'
 import { poolLabel, poolStandings } from '../engine/pools'
 import type { TieState } from '../engine/pools'
+import { TiebreakResult } from './components/TiebreakResult'
 import { TopBar } from './components/TopBar'
 import { NotFound } from './Setup'
 import type { Match, Tournament } from '../engine/types'
@@ -252,8 +253,6 @@ function TieBreakers({
   ties: TieState[]
   onDraw: () => void
 }) {
-  const nameOf = (pid: string) =>
-    tournament.players.find((p) => p.id === pid)?.name ?? '？'
   const tables = poolStandings(
     tournament.players,
     tournament.matches,
@@ -288,20 +287,11 @@ function TieBreakers({
             <Standings rows={tiedRows} />
 
             {s.matches.length > 0 && (
-              <section>
-                <h2 className="u-eyebrow">第 {s.attempt} 次加賽</h2>
-                {s.matches.map((m) => (
-                  <a className="mrow" key={m.id} href={`#/t/${id}/m/${m.id}`}>
-                    <span className="mrow__side">{nameOf(m.aId ?? '')}</span>
-                    <span className="mrow__score u-tab">
-                      {matchWinnerId(m) === null
-                        ? '對'
-                        : `${matchScore(m).a}–${matchScore(m).b}`}
-                    </span>
-                    <span className="mrow__side mrow__side--b">{nameOf(m.bId ?? '')}</span>
-                  </a>
-                ))}
-              </section>
+              <TiebreakResult
+                tie={s}
+                players={tournament.players}
+                matchHref={(mid) => `#/t/${id}/m/${mid}`}
+              />
             )}
 
             {s.attempt >= 2 && s.played && (

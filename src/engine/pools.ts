@@ -383,7 +383,7 @@ function tiebreaksFor(matches: Match[], pool: number, attempt: number): Match[] 
  * 唔用 `computeStandings` —— 嗰個喺勝場之後仲夾住「總得分」先至到分差，
  * 但規則講明係勝場 → 分差。加賽場數少，多塞一條規則落去淨係令人估唔到點解。
  */
-function rankByTiebreak(ids: string[], played: Match[]): { id: string; wins: number; diff: number }[] {
+function rankByTiebreak(ids: string[], played: Match[]): TiebreakRow[] {
   const stat = new Map(ids.map((id) => [id, { id, wins: 0, diff: 0 }]))
   for (const m of played) {
     if (m.aId === null || m.bId === null) continue
@@ -399,6 +399,14 @@ function rankByTiebreak(ids: string[], played: Match[]): { id: string; wins: num
   }
   // 排唔開嘅照留返原本次序，等上面自己判斷分唔分得開。
   return [...stat.values()].sort((x, y) => y.wins - x.wins || y.diff - x.diff)
+}
+
+/** 加賽入面一個人嘅成績。 */
+export interface TiebreakRow {
+  id: string
+  wins: number
+  /** 加賽場次嘅得失分差。 */
+  diff: number
 }
 
 /** 一個組喺出線線上面嘅並列狀況。 */
@@ -417,8 +425,13 @@ export interface TieState {
   played: boolean
   /** 打完之後線上線下分唔分得開。 */
   resolved: boolean
-  /** 分得開嘅話，加賽之後嘅次序。 */
-  order: string[] | null
+  /**
+   * 加賽成績，已經排好次序（勝場 → 分差）。未打完就係吉。
+   *
+   * 頭 `slots` 個就係出線嗰幾個 —— 前提係 `resolved` 為真。
+   * 介面要靠呢啲數畫張表出嚟，唔可以淨係寫一句「邊個邊個出線」。
+   */
+  results: TiebreakRow[]
 }
 
 /** 每組睇一睇出線線上面有冇並列。冇並列嘅組唔會出現喺結果入面。 */
@@ -442,17 +455,16 @@ export function tieStates(
     const played = mine.length > 0 && mine.every((m) => matchWinnerId(m) !== null)
 
     let resolved = false
-    let order: string[] | null = null
+    let results: TiebreakRow[] = []
     if (played) {
-      const ranked = rankByTiebreak(tie.ids, mine)
-      const above = ranked[tie.slots - 1]!
-      const below = ranked[tie.slots]!
+      results = rankByTiebreak(tie.ids, mine)
+      const above = results[tie.slots - 1]!
+      const below = results[tie.slots]!
       // 淨係要線上線下嗰兩個分得開就夠 —— 唔關事嗰啲分唔開都唔使再打。
       resolved = above.wins !== below.wins || above.diff !== below.diff
-      if (resolved) order = ranked.map((r) => r.id)
     }
 
-    out.push({ pool: table.pool, ids: tie.ids, slots: tie.slots, attempt, matches: mine, played, resolved, order })
+    out.push({ pool: table.pool, ids: tie.ids, slots: tie.slots, attempt, matches: mine, played, resolved, results })
   }
 
   return out

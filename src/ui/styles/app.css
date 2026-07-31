@@ -1556,3 +1556,27 @@ table {
   background: var(--floor-sunk);
   border: 1px solid var(--line);
 }
+
+/* 加賽結果嗰塊。同小組排名表分開擺，唔好撈埋一齊。 */
+.tiebreak {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px dashed var(--line);
+}
+
+.tiebreak__games {
+  margin-top: var(--sp-3);
+}
+
+/* 「出線」章。金色，同排名表條出線線同一個訊號。 */
+.through {
+  display: inline-block;
+  padding: 0.1em 0.45em;
+  font-size: var(--step--2);
+  font-variation-settings: 'wdth' 90, 'wght' 700;
+  letter-spacing: 0.06em;
+  color: var(--gold-text);
+  background: var(--slab);
+  border: 1px solid var(--gold);
+  white-space: nowrap;
+}
