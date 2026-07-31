@@ -148,7 +148,7 @@ function ConsoleBody({
 
       <div className="console">
         <div className="console__head">
-          <span className="u-eyebrow">{stageLabel}</span>
+          <span className="console__stage">{stageLabel}</span>
           <span className="u-eyebrow u-tab">
             打咗 {done}/{tournament.matches.length}
           </span>

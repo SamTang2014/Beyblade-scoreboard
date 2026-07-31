@@ -525,14 +525,30 @@ table {
 
 .console__head {
   display: flex;
-  align-items: center;
-  gap: var(--sp-3);
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-3);
   padding: var(--sp-2) var(--sp-4) 0;
 }
 
-.console__head > :first-child {
-  flex: 1;
+/*
+ * 「B 組 · 第 1 輪 · 全場第 3 場」。
+ *
+ * 主持人係望住呢行字叫人上台嘅，所以佢唔係 eyebrow 級數嘅細字 ——
+ * 擺大同埋用深色。原本嗰個 0.16em 字距係為細字設計，放大之後會鬆到散晒，
+ * 所以收窄返。
+ *
+ * flex-basis 擺 12rem：窄機上面塞唔落就自己跌落一行，唔會同「打咗 N/M」
+ * 迫到互相砍字。
+ */
+.console__head .console__stage {
+  flex: 1 1 12rem;
   min-width: 0;
+  font-variation-settings: 'wdth' 85, 'wght' 700;
+  font-size: var(--step-1);
+  line-height: 1.15;
+  letter-spacing: 0.03em;
+  color: var(--ink);
 }
 
 .btn--tight {
