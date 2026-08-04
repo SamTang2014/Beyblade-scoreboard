@@ -389,6 +389,43 @@ describe('三個模式都搵到並列', () => {
     expect(states.every((s) => !s.resolved)).toBe(true)
   })
 
+  /**
+   * p1 贏晒 3 場；p2／p3／p4 打成回圈 → 三個並列第 2。
+   * 三個人先至砌得出「加賽又打成回圈」，兩個人嘅加賽一定有贏家。
+   */
+  const THREE_WAY: Record<string, string> = {
+    p1__p2: 'p1',
+    p1__p3: 'p1',
+    p1__p4: 'p1',
+    p2__p3: 'p2',
+    p3__p4: 'p3',
+    p2__p4: 'p4',
+  }
+
+  it('單循環：一路分唔開就一路排得落去，唔設上限', () => {
+    let t = playGroupStage('roundRobin', null, THREE_WAY)
+    expect(standingsTies(t)).toHaveLength(1)
+    expect(standingsTies(t)[0]!.ids).toHaveLength(3)
+
+    for (const attempt of [1, 2, 3]) {
+      t = { ...t, matches: addTiebreak(t) }
+      const s = standingsTies(t)[0]!
+      expect(s.attempt).toBe(attempt)
+      expect(s.matches).toHaveLength(3)
+
+      // 加賽又打成回圈、全部 4-0 → 勝場、分差、極限全部一樣，實拆唔掂。
+      t = playTiebreaks(t, {
+        [`tb2r${attempt}m1`]: 'p2', // p2 贏 p3
+        [`tb2r${attempt}m2`]: 'p4', // p4 贏 p2
+        [`tb2r${attempt}m3`]: 'p3', // p3 贏 p4
+      })
+      expect(standingsTies(t)[0]!.resolved).toBe(false)
+    }
+
+    const tbIds = t.matches.filter((m) => m.stage === 'tiebreak').map((m) => m.id)
+    expect(new Set(tbIds).size).toBe(9) // 三輪 × 三場，一個都冇撞
+  })
+
   it('單循環：排到加賽 → 打完就拆掂 → 唔會再排', () => {
     const t = playGroupStage('roundRobin', null, TWO_TIES)
     const before = t.matches.length
