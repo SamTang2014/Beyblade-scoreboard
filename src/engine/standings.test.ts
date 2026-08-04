@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { completedCount, computeStandings, isTournamentComplete } from './standings'
-import { matchKey } from './rules'
+import { matchKey, xtremeInMatch, xtremeWins } from './rules'
 import type { FinishType, Match, Player, RoundResult } from './types'
 
 function players(n: number): Player[] {
@@ -370,5 +370,40 @@ describe('對賽成績（小循環）', () => {
     const rank = (id: string) => on.find((r) => r.playerId === id)!.rank
     expect(rank('p1')).toBeLessThan(rank('p2')) // p1 贏過 p2
     expect(rank('p2')).toBeLessThan(rank('p3')) // p3 分差細，主鏈已經輸咗
+  })
+})
+
+/**
+ * 入分版名下面嗰個 ⚡ 同排名表嗰欄一定要係同一個數。
+ *
+ * 入分版唔會叫 computeStandings（佢淨係有一場），佢叫 xtremeWins 餵成批小組場次。
+ * 兩條路要行到同一個答案，否則同一個標籤喺兩個畫面出兩個數。
+ */
+describe('入分版同排名表出同一個數', () => {
+  it('xtremeWins 餵晒小組場次 = 排名表嗰欄', () => {
+    const ms = [
+      rounds('p1', 'p2', ['a:xtreme', 'b:spin', 'a:spin']),
+      rounds('p3', 'p1', ['a:xtreme', 'b:spin', 'a:spin']),
+      rounds('p2', 'p3', ['a:burst', 'b:xtreme', 'a:burst']),
+      rounds('p1', 'p4', ['a:xtreme', 'a:xtreme']),
+    ]
+    const rows = computeStandings(players(4), ms)
+    for (const r of rows) {
+      expect(xtremeWins(ms, r.playerId)).toBe(r.xtremeWins)
+    }
+  })
+
+  it('打緊嗰場兩邊都唔計，淡色嗰個 +N 要靠 xtremeInMatch', () => {
+    const live = rounds('p1', 'p2', ['a:xtreme']) // a 3 分，未夠 4
+    const rows = computeStandings(players(2), [live])
+    expect(rows.find((r) => r.playerId === 'p1')!.xtremeWins).toBe(0)
+    expect(xtremeWins([live], 'p1')).toBe(0)
+    expect(xtremeInMatch(live, 'p1')).toBe(1)
+  })
+
+  it('呢場一打完，主數就食咗佢', () => {
+    const done = rounds('p1', 'p2', ['a:xtreme', 'a:spin']) // a 4，打完
+    expect(computeStandings(players(2), [done]).find((r) => r.playerId === 'p1')!.xtremeWins).toBe(1)
+    expect(xtremeWins([done], 'p1')).toBe(1)
   })
 })

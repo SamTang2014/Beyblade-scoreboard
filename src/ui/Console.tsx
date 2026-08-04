@@ -10,6 +10,8 @@ import {
   isReady,
   matchScore,
   matchWinnerId,
+  xtremeInMatch,
+  xtremeWins,
 } from '../engine/rules'
 import { completedCount } from '../engine/standings'
 import { bracketRoundName, clearDownstream, downstreamWithScores, propagate, totalBracketRounds } from '../engine/bracket'
@@ -66,6 +68,23 @@ function ConsoleBody({
   // 通常 4 分滿。但 2 分嗰陣打一次極限（3 分）會去到 5 分，
   // 所以條間度要就返實際最高分，唔係最後嗰格會爆出去。
   const meterMax = Math.max(MATCH_TARGET, score.a, score.b)
+
+  /*
+    名下面嗰個極限次數，數嘅係**打緊呢場所屬階段**嗰批場次 —— 即係永遠等於
+    你而家排緊嗰張表入面嗰個數：小組場對排名表，加賽場對加賽表。
+    淘汰賽冇排名表，所以唔出。
+
+    加賽仲要夾埋「同一次加賽」。加賽場次 id 係「tb<組>r<次>m<場>」，
+    去到最後一個 m 之前嗰橛就係嗰次加賽嘅 prefix。唔夾嘅話第 2 次加賽
+    會撈埋第 1 次嘅數落去。
+  */
+  const xtScope: Match[] | null = (() => {
+    if (match.stage === 'bracket') return null
+    const same = tournament.matches.filter((m) => m.stage === match.stage)
+    if (match.stage !== 'tiebreak') return same
+    const attemptOf = (mid: string) => mid.slice(0, mid.lastIndexOf('m'))
+    return same.filter((m) => attemptOf(m.id) === attemptOf(match.id))
+  })()
 
   /**
    * 改完一場之後收尾：淘汰賽要清走下游已入嘅分再重新推進，
@@ -190,6 +209,9 @@ function ConsoleBody({
             playerId={match.aId}
             locked={winnerId !== null || needsConfirm}
             meterMax={meterMax}
+            xtDone={xtScope === null || match.aId === null ? null : xtremeWins(xtScope, match.aId)}
+            xtLive={match.aId === null ? 0 : xtremeInMatch(match, match.aId)}
+            settled={winnerId !== null}
             onRecord={record}
           />
           <Side
@@ -201,6 +223,9 @@ function ConsoleBody({
             playerId={match.bId}
             locked={winnerId !== null || needsConfirm}
             meterMax={meterMax}
+            xtDone={xtScope === null || match.bId === null ? null : xtremeWins(xtScope, match.bId)}
+            xtLive={match.bId === null ? 0 : xtremeInMatch(match, match.bId)}
+            settled={winnerId !== null}
             onRecord={record}
           />
         </div>
@@ -288,6 +313,9 @@ function Side({
   playerId,
   locked,
   meterMax,
+  xtDone,
+  xtLive,
+  settled,
   onRecord,
 }: {
   tone: 'blue' | 'red'
@@ -299,6 +327,12 @@ function Side({
   locked: boolean
   /** 條間度嘅滿刻度。兩邊要一樣先比得到。 */
   meterMax: number
+  /** 呢個階段已經入咗數嘅極限次數。null = 唔顯示（淘汰賽）。 */
+  xtDone: number | null
+  /** 呢場暫時打咗幾多次極限。 */
+  xtLive: number
+  /** 呢場打完咗未。打完咗就唔好再出 `+N`，因為 `xtDone` 已經食咗佢。 */
+  settled: boolean
   onRecord: (winnerId: string, finish: FinishType) => void
 }) {
   const togo = Math.max(0, MATCH_TARGET - score)
@@ -340,6 +374,24 @@ function Side({
         <div className="side__togo">{togo === 0 ? '贏咗' : `仲爭 ${togo} 分`}</div>
 
         {/*
+          極限勝出次數。前面嗰個係已經入咗數嘅（同排名表一模一樣），
+          後面淡色嗰個係呢場暫時打咗幾多次 —— 呢場打完，後面消失、前面加上去。
+
+          唔可以加埋做一個數：排名表有條硬規矩係「未打完嘅場一分都唔計」，
+          撈埋一齊就會出現入分版 3、排名表 2 咁嘅兩個數。
+        */}
+        {xtDone !== null && (
+          <div className="side__xt">
+            <span aria-hidden="true">⚡</span>
+            <span className="u-tab">{xtDone}</span>
+            {!settled && xtLive > 0 && <span className="side__xt-live u-tab">+{xtLive}</span>}
+            <span className="sr-only">
+              極限勝出次數 {xtDone} 次{!settled && xtLive > 0 ? `，呢場仲有 ${xtLive} 次` : ''}
+            </span>
+          </div>
+        )}
+
+        {/*
           逐 round 點贏。條間度負責「贏緊幾多」，呢行負責「點樣贏」——
           兩件事分開講，唔會再撈埋。撳錯咗要「撳返轉頭」之前特別有用：
           冇呢行嘅話你根本睇唔出上一 round 記咗做乜。
@@ -347,7 +399,11 @@ function Side({
         {mine.length > 0 && (
           <div className="rlog">
             {mine.map((r, i) => (
-              <span className="rlog__item" key={i}>
+              <span
+                className={`rlog__item${r.finish === 'xtreme' ? ' rlog__item--x' : ''}`}
+                key={i}
+              >
+                {r.finish === 'xtreme' && <span aria-hidden="true">⚡</span>}
                 {FINISH_LABEL[r.finish]}
                 <span className="rlog__pts u-tab">{FINISH_POINTS[r.finish]}</span>
               </span>

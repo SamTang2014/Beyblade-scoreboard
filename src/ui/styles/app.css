@@ -663,6 +663,28 @@ table {
 }
 
 /*
+ * 極限勝出次數。前面係已入數嘅（同排名表一模一樣），後面淡色嗰個係呢場暫時打咗幾多次。
+ * 兩個數分開擺，就唔會同排名表打交。
+ */
+.side__xt {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3em;
+  margin-top: var(--sp-1);
+  font-size: var(--step--1);
+  font-variation-settings: 'wdth' 100, 'wght' 700;
+}
+
+.side--red .side__xt {
+  justify-content: flex-end;
+}
+
+.side__xt-live {
+  color: var(--ink-soft);
+  font-variation-settings: 'wdth' 90, 'wght' 600;
+}
+
+/*
  * 入分版每邊嗰條間度。
  *
  * 長度 = 分數。一格 = 一 round，格闊 = 嗰 round 值幾多分
@@ -748,6 +770,12 @@ table {
 
 .rlog__pts {
   font-variation-settings: 'wdth' 100, 'wght' 800;
+}
+
+/* 極限嗰粒標實 —— 佢係拆並列嘅關鍵，唔應該同轉贏一個樣。 */
+.rlog__item--x {
+  border-width: 2px;
+  font-variation-settings: 'wdth' 95, 'wght' 800;
 }
 
 .side--blue .rlog {
