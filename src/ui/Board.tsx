@@ -100,7 +100,7 @@ export function Board({ id }: { id: string }) {
                     cutAfter={tournament.advancePerPool ?? undefined}
                   />
                   {(() => {
-                    const tie = ties.find((t) => t.pool === table.pool)
+                    const tie = ties.find((t) => t.key === table.pool)
                     // 電視上面撳唔到嘢，所以唔傳 matchHref。
                     return tie === undefined || tie.matches.length === 0 ? null : (
                       <TiebreakResult tie={tie} players={tournament.players} />

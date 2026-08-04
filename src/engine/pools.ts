@@ -422,29 +422,90 @@ export interface TiebreakRow {
   xtreme: number
 }
 
-/** 一個組喺出線線上面嘅並列狀況。 */
+/** 一段分唔開嘅並列。 */
 export interface TieState {
-  /** 第幾組，1 起計。 */
-  pool: number
-  /** 分唔開嗰班人（小組賽排名次序）。 */
+  /**
+   * 加賽場次 id 嘅命名空間 key：小組賽係組號，其他模式係並列嗰個名次。
+   *
+   * ⚠ 名次做 key 有個代價：循環階段嘅分改咗，名次會郁，已排咗嘅加賽場次就會
+   * 認唔返自己（變咗孤兒場次，留喺賽程度但唔影響排名）。改分本身已經有警告，
+   * 而且孤兒場次係 `stage: 'tiebreak'`，唔會污染排名表，所以接受。
+   */
+  key: number
+  /** 決定介面點寫個標題：'pool' → 「A 組加賽」，'rank' → 「爭第 N 位加賽」。 */
+  kind: 'pool' | 'rank'
+  /** 分唔開嗰班人（排名次序）。 */
   ids: string[]
-  /** 佢哋入面爭緊幾多個出線位。 */
-  slots: number
+  /**
+   * 佢哋入面爭緊幾多個出線位。
+   * null = 冇出線線，要成班排晒先後（單循環）。
+   */
+  slots: number | null
   /** 已經排咗幾多次加賽（0 = 未排過）。 */
   attempt: number
   /** 最近嗰次加賽嘅場次。 */
   matches: Match[]
   /** 最近嗰次加賽打完晒未。 */
   played: boolean
-  /** 打完之後線上線下分唔分得開。 */
+  /** 打完之後分唔分得開。 */
   resolved: boolean
   /**
-   * 加賽成績，已經排好次序（勝場 → 分差）。未打完就係吉。
+   * 加賽成績，已經排好次序（勝場 → 分差 → 極限）。未打完就係吉。
    *
-   * 頭 `slots` 個就係出線嗰幾個 —— 前提係 `resolved` 為真。
    * 介面要靠呢啲數畫張表出嚟，唔可以淨係寫一句「邊個邊個出線」。
    */
   results: TiebreakRow[]
+}
+
+/**
+ * 加賽打完之後分唔分得開。
+ *
+ * 有出線線：線上面同線下面嗰兩個唔同就夠 —— 唔關事嗰啲分唔開都唔使再打。
+ * 冇出線線（單循環）：每一對相鄰都要唔同，因為冇線可劃，要排晒先後。
+ */
+function separated(results: TiebreakRow[], slots: number | null): boolean {
+  const differ = (a: TiebreakRow, b: TiebreakRow) =>
+    a.wins !== b.wins || a.diff !== b.diff || a.xtreme !== b.xtreme
+
+  if (slots === null) {
+    return results.every((r, i) => i === 0 || differ(results[i - 1]!, r))
+  }
+
+  const above = results[slots - 1]
+  const below = results[slots]
+  // 條線根本唔喺呢班人中間 —— 冇嘢要拆。
+  if (above === undefined || below === undefined) return true
+  return differ(above, below)
+}
+
+/**
+ * 由已排咗嘅加賽場次，砌出一段並列嘅狀態。
+ *
+ * 小組賽同唔分組嘅模式共用呢個 —— 佢哋唯一嘅分別係「邊班人並列」點搵，
+ * 搵到之後點排加賽、點結算完全一樣。
+ */
+function tieStateFor(
+  key: number,
+  kind: 'pool' | 'rank',
+  ids: string[],
+  slots: number | null,
+  matches: Match[],
+): TieState {
+  // 排到第幾次。冇排過就係 0。
+  let attempt = 0
+  while (tiebreaksFor(matches, key, attempt + 1).length > 0) attempt += 1
+
+  const mine = attempt === 0 ? [] : tiebreaksFor(matches, key, attempt)
+  const played = mine.length > 0 && mine.every((m) => matchWinnerId(m) !== null)
+
+  let resolved = false
+  let results: TiebreakRow[] = []
+  if (played) {
+    results = rankByTiebreak(ids, mine)
+    resolved = separated(results, slots)
+  }
+
+  return { key, kind, ids, slots, attempt, matches: mine, played, resolved, results }
 }
 
 /** 每組睇一睇出線線上面有冇並列。冇並列嘅組唔會出現喺結果入面。 */
@@ -456,32 +517,11 @@ export function tieStates(
   headToHead = false,
 ): TieState[] {
   const out: TieState[] = []
-
   for (const table of poolStandings(players, matches, poolCount, headToHead)) {
     const tie = tiedAtCut(table.rows, advancePerPool)
     if (tie === null) continue
-
-    // 排到第幾次。冇排過就係 0。
-    let attempt = 0
-    while (tiebreaksFor(matches, table.pool, attempt + 1).length > 0) attempt += 1
-
-    const mine = attempt === 0 ? [] : tiebreaksFor(matches, table.pool, attempt)
-    const played = mine.length > 0 && mine.every((m) => matchWinnerId(m) !== null)
-
-    let resolved = false
-    let results: TiebreakRow[] = []
-    if (played) {
-      results = rankByTiebreak(tie.ids, mine)
-      const above = results[tie.slots - 1]!
-      const below = results[tie.slots]!
-      // 淨係要線上線下嗰兩個分得開就夠 —— 唔關事嗰啲分唔開都唔使再打。
-      resolved =
-        above.wins !== below.wins || above.diff !== below.diff || above.xtreme !== below.xtreme
-    }
-
-    out.push({ pool: table.pool, ids: tie.ids, slots: tie.slots, attempt, matches: mine, played, resolved, results })
+    out.push(tieStateFor(table.pool, 'pool', tie.ids, tie.slots, matches))
   }
-
   return out
 }
 
@@ -497,11 +537,24 @@ export function tiesPending(
 }
 
 /**
- * 排下一次加賽。
+ * 由並列狀態排下一批加賽場次。
  *
  * 未排過就排第 1 次；已經排咗而且打完但仲分唔開，就排下一次。
  * 打緊嗰次未打完就唔排 —— 唔係會排咗一堆冇人打嘅場次出嚟。
+ *
+ * 唔設輪數上限：一路分唔開就一路排得落去，打到分勝負為止。
  */
+export function nextTiebreakFor(states: TieState[]): Match[] {
+  const out: Match[] = []
+  for (const s of states) {
+    if (s.resolved) continue
+    if (s.attempt === 0) out.push(...buildTiebreak(s.key, s.ids, 1))
+    else if (s.played) out.push(...buildTiebreak(s.key, s.ids, s.attempt + 1))
+  }
+  return out
+}
+
+/** 小組賽嘅殼：搵齊各組並列，再排下一批。 */
 export function nextTiebreak(
   players: Player[],
   matches: Match[],
@@ -509,13 +562,7 @@ export function nextTiebreak(
   advancePerPool: number,
   headToHead = false,
 ): Match[] {
-  const out: Match[] = []
-  for (const s of tieStates(players, matches, poolCount, advancePerPool, headToHead)) {
-    if (s.resolved) continue
-    if (s.attempt === 0) out.push(...buildTiebreak(s.pool, s.ids, 1))
-    else if (s.played) out.push(...buildTiebreak(s.pool, s.ids, s.attempt + 1))
-  }
-  return out
+  return nextTiebreakFor(tieStates(players, matches, poolCount, advancePerPool, headToHead))
 }
 
 /** 用加賽結果重排小組排名表入面並列嗰一段。冇加賽或者拆唔掂就原封不動。 */

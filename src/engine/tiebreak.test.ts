@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildTiebreak,
   nextTiebreak,
+  nextTiebreakFor,
   poolSeedOrder,
   poolStandings,
   rankByTiebreak,
@@ -310,5 +311,34 @@ describe('小組排名收得到同分點拆嘅選項', () => {
 
   it('poolSeedOrder 收得到個選項', () => {
     expect(poolSeedOrder(ABC, TWO, 3, 2, true).sort()).toEqual(['A', 'B'])
+  })
+})
+
+describe('TieState 抽象成一段並列', () => {
+  it('小組賽出嚟嘅 state：key 係組號、kind 係 pool', () => {
+    const [state] = tieStates(ABC, CYCLE, 3, 2)
+    expect(state!.key).toBe(3)
+    expect(state!.kind).toBe('pool')
+    expect(state!.slots).toBe(2)
+  })
+
+  it('nextTiebreakFor 由 state 直接排下一批', () => {
+    const first = nextTiebreakFor(tieStates(ABC, CYCLE, 3, 2))
+    expect(first).toHaveLength(3)
+    expect(first.every((m) => m.round === 1)).toBe(true)
+    expect(first.every((m) => m.id.startsWith('tb3r1m'))).toBe(true)
+
+    // 同 nextTiebreak 出一模一樣嘅嘢 —— 後者而家淨係一層殼。
+    expect(nextTiebreak(ABC, CYCLE, 3, 2)).toEqual(first)
+  })
+
+  it('拆掂咗就唔會再排', () => {
+    const all = [
+      ...CYCLE,
+      played('A', 'B', 'tb3r1m1', 'tiebreak'),
+      played('A', 'C', 'tb3r1m2', 'tiebreak'),
+      played('B', 'C', 'tb3r1m3', 'tiebreak'),
+    ]
+    expect(nextTiebreakFor(tieStates(ABC, all, 3, 2))).toHaveLength(0)
   })
 })

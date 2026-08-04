@@ -265,13 +265,13 @@ function TieBreakers({
   return (
     <>
       {ties.map((s) => {
-        const rows = tables.find((t) => t.pool === s.pool)?.rows ?? []
+        const rows = tables.find((t) => t.pool === s.key)?.rows ?? []
         const tiedRows = rows.filter((r) => s.ids.includes(r.playerId))
         return (
-          <section key={s.pool} className="stack">
+          <section key={s.key} className="stack">
             <div className="verdict chamfer">
               <div>
-                <span className="u-eyebrow">{poolLabel(s.pool)} 組分唔開</span>
+                <span className="u-eyebrow">{poolLabel(s.key)} 組分唔開</span>
                 <div className="verdict__who">
                   {s.ids.length} 個人爭 {s.slots} 個位
                 </div>

@@ -121,7 +121,7 @@ export function Table({ id }: { id: string }) {
                 </h2>
                 <Standings rows={table.rows} cutAfter={tournament.advancePerPool ?? undefined} />
                 {(() => {
-                  const tie = ties.find((t) => t.pool === table.pool)
+                  const tie = ties.find((t) => t.key === table.pool)
                   return tie === undefined || tie.matches.length === 0 ? null : (
                     <TiebreakResult
                       tie={tie}

@@ -26,7 +26,7 @@ export function TiebreakResult({
   const nameOf = (pid: string | null) =>
     pid === null ? '？' : (players.find((p) => p.id === pid)?.name ?? '？')
 
-  const heading = `${poolLabel(tie.pool)} 組加賽${tie.attempt > 1 ? `（第 ${tie.attempt} 次）` : ''}`
+  const heading = `${poolLabel(tie.key)} 組加賽${tie.attempt > 1 ? `（第 ${tie.attempt} 次）` : ''}`
 
   return (
     <section className="tiebreak">
@@ -61,7 +61,7 @@ export function TiebreakResult({
             </thead>
             <tbody>
               {tie.results.map((r, i) => {
-                const through = tie.resolved && i < tie.slots
+                const through = tie.resolved && tie.slots !== null && i < tie.slots
                 return (
                   <tr key={r.id} data-cut={i + 1 === tie.slots ? true : undefined}>
                     <td className="stand__rank">{i + 1}</td>
