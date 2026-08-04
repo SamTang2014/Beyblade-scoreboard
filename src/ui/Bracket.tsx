@@ -2,6 +2,7 @@ import { useTournament } from '../storage/browserStore'
 import { bracketMatches } from '../engine/schedule'
 import { bracketChampion, bracketRoundName, totalBracketRounds } from '../engine/bracket'
 import { matchScore, matchStatus, matchWinnerId } from '../engine/rules'
+import { computeStandings } from '../engine/standings'
 import { Standings } from './components/Standings'
 import { addTiebreak, buildCut, groupStageComplete, hasBracket, standingsTies } from '../engine/tournament'
 import { poolLabel, poolStandings } from '../engine/pools'
@@ -259,25 +260,33 @@ function TieBreakers({
     tournament.poolCount ?? 0,
     tournament.headToHead,
   )
-  // 有邊組排咗加賽但仲未打完 —— 打緊就唔好再彈粒「排加賽」出嚟。
+  // 大循環冇分組，並列嗰班人要由總排名表度搵。
+  const overall = computeStandings(tournament.players, tournament.matches, tournament.headToHead)
+  const rowsFor = (s: TieState) =>
+    s.kind === 'pool' ? (tables.find((t) => t.pool === s.key)?.rows ?? []) : overall
+
+  // 有邊段排咗加賽但仲未打完 —— 打緊就唔好再彈粒「排加賽」出嚟。
   const waiting = ties.some((s) => s.attempt > 0 && !s.played)
 
   return (
     <>
       {ties.map((s) => {
-        const rows = tables.find((t) => t.pool === s.key)?.rows ?? []
-        const tiedRows = rows.filter((r) => s.ids.includes(r.playerId))
+        const tiedRows = rowsFor(s).filter((r) => s.ids.includes(r.playerId))
         return (
           <section key={s.key} className="stack">
             <div className="verdict chamfer">
               <div>
-                <span className="u-eyebrow">{poolLabel(s.key)} 組分唔開</span>
+                <span className="u-eyebrow">
+                  {s.kind === 'pool' ? `${poolLabel(s.key)} 組分唔開` : `第 ${s.key} 位分唔開`}
+                </span>
                 <div className="verdict__who">
-                  {s.ids.length} 個人爭 {s.slots} 個位
+                  {s.slots === null
+                    ? `${s.ids.length} 個人要排晒先後`
+                    : `${s.ids.length} 個人爭 ${s.slots} 個位`}
                 </div>
                 <span className="u-eyebrow">
                   {s.attempt === 0
-                    ? '勝場、得分、失分、分差四樣都一樣，要打加賽先分到'
+                    ? '勝場、得分、分差、極限次數四樣都一樣，要打加賽先分到'
                     : s.played
                       ? `第 ${s.attempt} 次加賽又分唔開`
                       : `第 ${s.attempt} 次加賽打緊`}

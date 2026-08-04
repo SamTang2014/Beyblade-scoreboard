@@ -26,19 +26,30 @@ export function TiebreakResult({
   const nameOf = (pid: string | null) =>
     pid === null ? '？' : (players.find((p) => p.id === pid)?.name ?? '？')
 
-  const heading = `${poolLabel(tie.key)} 組加賽${tie.attempt > 1 ? `（第 ${tie.attempt} 次）` : ''}`
+  const attemptTag = tie.attempt > 1 ? `（第 ${tie.attempt} 次）` : ''
+  const heading =
+    tie.kind === 'pool'
+      ? `${poolLabel(tie.key)} 組加賽${attemptTag}`
+      : `爭第 ${tie.key} 位嘅加賽${attemptTag}`
+
+  // 冇出線線（單循環）就唔係「爭幾多個位」，係要成班排晒先後。
+  const goal =
+    tie.slots === null
+      ? `${tie.ids.length} 個人要排晒先後`
+      : `${tie.ids.length} 個人爭 ${tie.slots} 個位`
 
   return (
     <section className="tiebreak">
       <h3 className="u-eyebrow">
-        {heading} · {tie.ids.length} 個人爭 {tie.slots} 個位
+        {heading} · {goal}
       </h3>
 
       {tie.played ? (
         <div className="tablewrap">
           <table className="stand">
             <caption className="sr-only">
-              加賽成績。先比勝場，再比分差，最後極限勝出次數。頭 {tie.slots} 個出線。
+              加賽成績。先比勝場，再比分差，最後極限勝出次數。
+              {tie.slots === null ? '要排晒先後。' : `頭 ${tie.slots} 個出線。`}
             </caption>
             <thead>
               <tr>
@@ -111,14 +122,18 @@ export function TiebreakResult({
       {!tie.played ? (
         <p className="note">
           <span>·</span>
-          <span>加賽仲未打完，打晒先分到邊個出線。</span>
+          <span>
+            加賽仲未打完，打晒先{tie.slots === null ? '排到先後' : '分到邊個出線'}。
+          </span>
         </p>
       ) : tie.resolved ? (
         <p className="note">
           <span>·</span>
           <span>
-            先比加賽勝場，打和就比分差，再打和就比極限勝出次數。線上面 {tie.slots} 個出線，
-            線下面冇份。
+            先比加賽勝場，打和就比分差，再打和就比極限勝出次數。
+            {tie.slots === null
+              ? '而家排晒先後喇。'
+              : `線上面 ${tie.slots} 個出線，線下面冇份。`}
           </span>
         </p>
       ) : (
