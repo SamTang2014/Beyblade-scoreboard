@@ -669,10 +669,12 @@ table {
 .side__xt {
   display: flex;
   align-items: baseline;
-  gap: 0.3em;
-  margin-top: var(--sp-1);
-  font-size: var(--step--1);
-  font-variation-settings: 'wdth' 100, 'wght' 700;
+  gap: 0.35em;
+  margin-top: var(--sp-2);
+  color: var(--gold-text);
+  font-size: var(--step-3);
+  font-variation-settings: 'wdth' 110, 'wght' 800;
+  line-height: 1;
 }
 
 .side--red .side__xt {
@@ -681,7 +683,8 @@ table {
 
 .side__xt-live {
   color: var(--ink-soft);
-  font-variation-settings: 'wdth' 90, 'wght' 600;
+  font-size: var(--step-1);
+  font-variation-settings: 'wdth' 90, 'wght' 650;
 }
 
 /*
@@ -854,8 +857,20 @@ table {
   text-align: right;
 }
 
+/*
+ * 極限嗰粒掣。3 分嘅嘢，同 1 分嘅轉贏一個樣就分唔到輕重 ——
+ * 而且極限次數而家係拆並列嘅關鍵，全個 app 一律用金色 + ⚡ 講佢。
+ */
+.finishbtn--x .finishbtn__pts,
+.finishbtn--x .finishbtn__label {
+  color: var(--gold-text);
+}
+
 .finishbtn__label {
   display: block;
+  display: flex;
+  align-items: baseline;
+  gap: 0.25em;
   font-size: var(--step-1);
   font-variation-settings: 'wdth' 105, 'wght' 700;
   line-height: 1.1;
@@ -1034,6 +1049,25 @@ table {
 .stand__num {
   font-variant-numeric: tabular-nums;
   font-variation-settings: 'wdth' 100, 'wght' 650;
+}
+
+/*
+ * 極限勝出次數嗰欄。
+ *
+ * 佢係拆並列嘅關鍵，同其他數字一個樣就搵唔到 —— 所以大過人、金色、粗過人。
+ * 個 ⚡ 表頭本身用 --step--2（同其他表頭一樣）細到睇唔清，所以獨立放大。
+ */
+/* 要 .stand thead 前綴：淨係 .stand__xthead 打唔贏上面 .stand thead th。 */
+.stand thead .stand__xthead {
+  font-size: var(--step-0);
+  color: var(--gold-text);
+}
+
+.stand .stand__xt {
+  font-size: var(--step-2);
+  color: var(--gold-text);
+  font-variation-settings: 'wdth' 105, 'wght' 800;
+  line-height: 1;
 }
 
 .stand tr[data-lead='true'] .stand__rank {
@@ -1532,6 +1566,14 @@ table {
 .board .stand td {
   padding: var(--sp-3) var(--sp-4);
   font-size: var(--step-1);
+}
+
+.board .stand thead .stand__xthead {
+  font-size: var(--step-1);
+}
+
+.board .stand .stand__xt {
+  font-size: var(--step-3);
 }
 
 .board .stand__rank {

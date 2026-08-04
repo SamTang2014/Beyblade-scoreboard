@@ -36,7 +36,7 @@ export function Standings({
             <th scope="col">勝</th>
             <th scope="col">負</th>
             <th scope="col">得分</th>
-            <th scope="col">
+            <th className="stand__xthead" scope="col">
               <span aria-hidden="true">⚡</span>
               <span className="sr-only">極限勝出次數</span>
             </th>
@@ -59,7 +59,7 @@ export function Standings({
               <td className="stand__num">{r.wins}</td>
               <td className="stand__num">{r.losses}</td>
               <td className="stand__num">{r.pointsFor}</td>
-              <td className="stand__num">{r.xtremeWins}</td>
+              <td className="stand__num stand__xt">{r.xtremeWins}</td>
               {!compact && <td className="stand__num">{r.pointsAgainst}</td>}
               {!compact && (
                 <td className="stand__num">

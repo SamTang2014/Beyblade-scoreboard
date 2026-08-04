@@ -416,13 +416,20 @@ function Side({
         {FINISH_ORDER.map((finish) => (
           <button
             key={finish}
-            className="finishbtn chamfer-sm"
+            className={`finishbtn chamfer-sm${finish === 'xtreme' ? ' finishbtn--x' : ''}`}
             disabled={locked || playerId === null}
             onClick={() => playerId !== null && onRecord(playerId, finish)}
           >
             <span className="finishbtn__pts">+{FINISH_POINTS[finish]}</span>
             <span className="finishbtn__body">
-              <span className="finishbtn__label">{FINISH_LABEL[finish]}</span>
+              {/*
+                極限喺成個 app 都係「⚡ + 金色」。呢粒掣係你落極限嗰下撳嘅嘢，
+                冇理由淨係佢唔跟 —— 個閃電 aria-hidden，讀屏器讀返下面句 sr-only。
+              */}
+              <span className="finishbtn__label">
+                {finish === 'xtreme' && <span aria-hidden="true">⚡</span>}
+                {FINISH_LABEL[finish]}
+              </span>
               <span className="finishbtn__hint">{FINISH_HINT[finish]}</span>
             </span>
             <span className="sr-only">

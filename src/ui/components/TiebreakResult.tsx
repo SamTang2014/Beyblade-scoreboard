@@ -61,7 +61,7 @@ export function TiebreakResult({
                 </th>
                 <th scope="col">勝</th>
                 <th scope="col">分差</th>
-                <th scope="col">
+                <th className="stand__xthead" scope="col">
                   <span aria-hidden="true">⚡</span>
                   <span className="sr-only">極限勝出次數</span>
                 </th>
@@ -84,7 +84,7 @@ export function TiebreakResult({
                       {r.diff > 0 ? '+' : ''}
                       {r.diff}
                     </td>
-                    <td className="stand__num">{r.xtreme}</td>
+                    <td className="stand__num stand__xt">{r.xtreme}</td>
                     <td className="stand__num">
                       {through && <span className="through">出線</span>}
                     </td>
