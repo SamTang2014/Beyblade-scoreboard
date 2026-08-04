@@ -1,7 +1,7 @@
 import { bracketSize, drawOrder, seedSlots } from './bracket'
 import { groupMatches, mergeSchedule } from './schedule'
 import { matchScore, matchWinnerId, xtremeInMatch } from './rules'
-import { computeStandings } from './standings'
+import { computeStandings, isTournamentComplete } from './standings'
 import type { Match, Player, StandingRow } from './types'
 
 /**
@@ -521,6 +521,49 @@ export function tieStates(
     const tie = tiedAtCut(table.rows, advancePerPool)
     if (tie === null) continue
     out.push(tieStateFor(table.pool, 'pool', tie.ids, tie.slots, matches))
+  }
+  return out
+}
+
+/**
+ * 唔分組嘅模式（單循環、大循環）嘅並列。
+ *
+ * `cut` = 頭幾名有意義（大循環入籤表人數）；null = 冇出線線，任何一段並列
+ * 都要拆（單循環）。
+ *
+ * **循環未打完就返吉。** 一場都未打嘅時候全部人並列第 1，唔攔住就會即刻彈
+ * 一句「成場人要打加賽」出嚟。小組賽嗰個 `tieStates` 冇呢個 gate —— 佢打到
+ * 一半顯示「呢兩個而家並列」係有用資訊，而真正會出事嗰度（砌籤表）本身已經
+ * 有 `groupStageComplete` 守住。
+ */
+export function rankTieStates(
+  players: Player[],
+  matches: Match[],
+  headToHead: boolean,
+  cut: number | null,
+): TieState[] {
+  const group = groupMatches(matches)
+  if (!isTournamentComplete(group)) return []
+
+  const rows = computeStandings(players, group, headToHead)
+
+  if (cut !== null) {
+    const tie = tiedAtCut(rows, cut)
+    if (tie === null) return []
+    const first = rows.find((r) => r.playerId === tie.ids[0])!
+    return [tieStateFor(first.rank, 'rank', tie.ids, tie.slots, matches)]
+  }
+
+  // 任何一段並列都拆。共用同一個名次就係一段。
+  const out: TieState[] = []
+  for (let i = 0; i < rows.length; ) {
+    let end = i + 1
+    while (end < rows.length && rows[end]!.rank === rows[i]!.rank) end += 1
+    if (end - i >= 2) {
+      const ids = rows.slice(i, end).map((r) => r.playerId)
+      out.push(tieStateFor(rows[i]!.rank, 'rank', ids, null, matches))
+    }
+    i = end
   }
   return out
 }

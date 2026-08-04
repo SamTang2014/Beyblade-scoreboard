@@ -3,6 +3,7 @@ import {
   buildTiebreak,
   nextTiebreak,
   nextTiebreakFor,
+  rankTieStates,
   poolSeedOrder,
   poolStandings,
   rankByTiebreak,
@@ -64,6 +65,32 @@ const CYCLE: Match[] = [
   group('B', 'D'),
   group('C', 'D'),
 ]
+
+/** 冇組別嘅選手 —— 單循環同大循環都係咁。 */
+function flat(names: string[]): Player[] {
+  return names.map((name, i) => ({ id: name, name, seat: i, pool: null }))
+}
+
+const FOUR = flat(['A', 'B', 'C', 'D'])
+
+/**
+ * 同 CYCLE 一樣嘅結果，但啲人冇組別。
+ * A／B／C 全部 2 勝 1 負、8 分、失 4 分、2 次極限 —— 主鏈四樣全同，並列第 1。
+ * D 三場全輸，第 4。
+ */
+const TOP3: Match[] = [
+  group('A', 'B'),
+  group('B', 'C'),
+  group('C', 'A'),
+  group('A', 'D'),
+  group('B', 'D'),
+  group('C', 'D'),
+]
+
+/** 同 TOP3 一樣，但最後一場仲未打 —— 用嚟測「循環未打完唔好出聲」。 */
+const TOP3_MIDWAY: Match[] = TOP3.map((m, i) =>
+  i === TOP3.length - 1 ? { ...m, rounds: [] } : m,
+)
 
 describe('三個人打成一個循環', () => {
   it('小組排名表照顯示三個人並列第 1', () => {
@@ -340,5 +367,145 @@ describe('TieState 抽象成一段並列', () => {
       played('B', 'C', 'tb3r1m3', 'tiebreak'),
     ]
     expect(nextTiebreakFor(tieStates(ABC, all, 3, 2))).toHaveLength(0)
+  })
+})
+
+describe('唔分組嘅並列（rankTieStates）', () => {
+  it('循環未打完就返吉，就算而家全部人並列', () => {
+    expect(rankTieStates(FOUR, [], false, null)).toEqual([])
+    expect(rankTieStates(FOUR, TOP3_MIDWAY, false, null)).toEqual([])
+  })
+
+  it('一段都冇並列就返吉', () => {
+    // A 贏晒、B 贏 C 同 D、C 贏 D、D 全輸 —— 勝場 3/2/1/0。
+    const clear = [
+      group('A', 'B'),
+      group('A', 'C'),
+      group('A', 'D'),
+      group('B', 'C'),
+      group('B', 'D'),
+      group('C', 'D'),
+    ]
+    expect(rankTieStates(FOUR, clear, false, null)).toEqual([])
+  })
+
+  it('單循環：三個人並列第 1 → 一個 state，key 係 1、冇出線線', () => {
+    const [s] = rankTieStates(FOUR, TOP3, false, null)
+    expect(s!.key).toBe(1)
+    expect(s!.kind).toBe('rank')
+    expect(s!.slots).toBeNull()
+    expect([...s!.ids].sort()).toEqual(['A', 'B', 'C'])
+    expect(s!.attempt).toBe(0)
+  })
+
+  it('單循環：兩段並列 → 兩個 state，key 分別係並列嗰個名次', () => {
+    // A 贏 C、A 贏 D、B 贏 C、B 贏 D；A 同 B 未打過，C 同 D 都未打過。
+    // → A／B 並列第 1（2 勝、8 分、失 0 分、2 次極限），C／D 並列第 3。
+    const ms = [group('A', 'C'), group('A', 'D'), group('B', 'C'), group('B', 'D')]
+    const states = rankTieStates(FOUR, ms, false, null)
+    expect(states.map((s) => s.key)).toEqual([1, 3])
+    expect([...states[0]!.ids].sort()).toEqual(['A', 'B'])
+    expect([...states[1]!.ids].sort()).toEqual(['C', 'D'])
+  })
+
+  it('兩段並列各自有自己嘅命名空間，加賽 id 唔會撞', () => {
+    const ms = [group('A', 'C'), group('A', 'D'), group('B', 'C'), group('B', 'D')]
+    const more = nextTiebreakFor(rankTieStates(FOUR, ms, false, null))
+    // 兩段各 2 個人 = 各 1 場。
+    expect(more.map((m) => m.id).sort()).toEqual(['tb1r1m1', 'tb3r1m1'])
+  })
+
+  it('單循環：包尾嗰段並列都要出 state', () => {
+    // A 贏晒 3 場；B、C、D 之間打成回圈，全部 4-0 → B/C/D 並列第 2。
+    const ms = [
+      group('A', 'B'),
+      group('A', 'C'),
+      group('A', 'D'),
+      group('B', 'C'),
+      group('C', 'D'),
+      group('D', 'B'),
+    ]
+    const states = rankTieStates(FOUR, ms, false, null)
+    expect(states).toHaveLength(1)
+    expect(states[0]!.key).toBe(2)
+    expect([...states[0]!.ids].sort()).toEqual(['B', 'C', 'D'])
+  })
+
+  it('單循環冇出線線：加賽拆到頭嗰個但後面兩個一樣，唔算拆掂', () => {
+    // 加賽又打成回圈，但贏嘅場數唔同分：A 贏 B 4-0、C 贏 A 4-2、B 贏 C 4-1。
+    // 內部分差 A +2、B −1、C −1；勝場同極限次數三個都一樣。
+    const tb = [
+      played('A', 'B', 'tb1r1m1', 'tiebreak', 0),
+      played('C', 'A', 'tb1r1m2', 'tiebreak', 2),
+      played('B', 'C', 'tb1r1m3', 'tiebreak', 1),
+    ]
+    const [s] = rankTieStates(FOUR, [...TOP3, ...tb], false, null)
+    expect(s!.results.map((r) => r.id)).toEqual(['A', 'B', 'C'])
+    expect(s!.results.map((r) => r.diff)).toEqual([2, -1, -1])
+    expect(s!.resolved).toBe(false)
+  })
+
+  it('大循環有出線線：同一批加賽，線上線下分得開就算拆掂', () => {
+    const tb = [
+      played('A', 'B', 'tb1r1m1', 'tiebreak', 0),
+      played('C', 'A', 'tb1r1m2', 'tiebreak', 2),
+      played('B', 'C', 'tb1r1m3', 'tiebreak', 1),
+    ]
+    const [s] = rankTieStates(FOUR, [...TOP3, ...tb], false, 1)
+    expect(s!.slots).toBe(1)
+    expect(s!.resolved).toBe(true)
+  })
+
+  it('一路分唔開就一路排得落去，三輪都唔會撞 id', () => {
+    /** 加賽又打成回圈、全部 4-0 —— 勝場、分差、極限全部一樣，實拆唔掂。 */
+    const round = (attempt: number): Match[] => [
+      played('A', 'B', `tb1r${attempt}m1`, 'tiebreak'),
+      played('B', 'C', `tb1r${attempt}m2`, 'tiebreak'),
+      played('C', 'A', `tb1r${attempt}m3`, 'tiebreak'),
+    ]
+
+    let all: Match[] = [...TOP3, ...round(1)]
+    for (const next of [2, 3]) {
+      const states = rankTieStates(FOUR, all, false, null)
+      expect(states[0]!.attempt).toBe(next - 1)
+      expect(states[0]!.resolved).toBe(false)
+
+      const more = nextTiebreakFor(states)
+      expect(more).toHaveLength(3)
+      expect(more.every((m) => m.round === next)).toBe(true)
+      expect(more.map((m) => m.id).sort()).toEqual(round(next).map((m) => m.id).sort())
+      all = [...all, ...round(next)]
+    }
+
+    const ids = all.filter((m) => m.stage === 'tiebreak').map((m) => m.id)
+    expect(new Set(ids).size).toBe(9)
+  })
+
+  it('大循環：出線線上下分得開就返吉', () => {
+    const clear = [
+      group('A', 'B'),
+      group('A', 'C'),
+      group('A', 'D'),
+      group('B', 'C'),
+      group('B', 'D'),
+      group('C', 'D'),
+    ]
+    expect(rankTieStates(FOUR, clear, false, 2)).toEqual([])
+  })
+
+  it('大循環：頭 2 名入籤表，三個並列第 1 → 三個爭 2 個位', () => {
+    const [s] = rankTieStates(FOUR, TOP3, false, 2)
+    expect(s!.kind).toBe('rank')
+    expect(s!.key).toBe(1)
+    expect(s!.slots).toBe(2)
+    expect([...s!.ids].sort()).toEqual(['A', 'B', 'C'])
+  })
+
+  it('大循環：並列嗰班全部喺線之上就唔使拆', () => {
+    expect(rankTieStates(FOUR, TOP3, false, 3)).toEqual([])
+  })
+
+  it('大循環：循環未打完就返吉', () => {
+    expect(rankTieStates(FOUR, TOP3_MIDWAY, false, 2)).toEqual([])
   })
 })
