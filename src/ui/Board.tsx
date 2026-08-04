@@ -4,7 +4,7 @@ import { inPlayOrder } from '../engine/schedule'
 import { matchScore, matchWinnerId } from '../engine/rules'
 import { computeStandings, isTournamentComplete } from '../engine/standings'
 import { bracketChampion } from '../engine/bracket'
-import { poolLabel, poolStandings } from '../engine/pools'
+import { applyRankTiebreaks, poolLabel, poolStandings } from '../engine/pools'
 import { standingsTies } from '../engine/tournament'
 import { TiebreakResult } from './components/TiebreakResult'
 import { Standings } from './components/Standings'
@@ -28,7 +28,10 @@ export function Board({ id }: { id: string }) {
 
   const order = inPlayOrder(tournament.matches)
   const current = order.find((m) => matchWinnerId(m) === null) ?? null
-  const rows = computeStandings(tournament.players, tournament.matches, tournament.headToHead)
+  const ties = standingsTies(tournament)
+  const rawRows = computeStandings(tournament.players, tournament.matches, tournament.headToHead)
+  // 單循環張表就係最終結果，打完加賽要重排、解開並列。詳情見 Table.tsx。
+  const rows = tournament.mode === 'roundRobin' ? applyRankTiebreaks(rawRows, ties) : rawRows
   const complete = isTournamentComplete(tournament.matches)
   const nameOf = (pid: string | null) =>
     pid === null ? '等緊上場' : (tournament.players.find((p) => p.id === pid)?.name ?? '？')
@@ -42,7 +45,6 @@ export function Board({ id }: { id: string }) {
         )
       : null
   const champText = complete ? championLine(tournament, rows) : ''
-  const ties = standingsTies(tournament)
 
   /**
    * 打緊嗰場係加賽嘅話，喺個大比分上面講明。
@@ -88,7 +90,15 @@ export function Board({ id }: { id: string }) {
             排名榜
           </h2>
           {pools === null ? (
-            <Standings rows={rows} compact />
+            <>
+              <Standings rows={rows} compact />
+              {/* 電視上面撳唔到嘢，所以唔傳 matchHref，亦都冇「排加賽」粒掣。 */}
+              {ties
+                .filter((s) => s.matches.length > 0)
+                .map((s) => (
+                  <TiebreakResult key={s.key} tie={s} players={tournament.players} />
+                ))}
+            </>
           ) : (
             <div className="poolgrid">
               {pools.map((table) => (

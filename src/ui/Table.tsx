@@ -1,8 +1,8 @@
 import { useTournament, store } from '../storage/browserStore'
 import { computeStandings, completedCount, isTournamentComplete } from '../engine/standings'
 import { bracketChampion } from '../engine/bracket'
-import { poolLabel, poolStandings } from '../engine/pools'
-import { standingsTies } from '../engine/tournament'
+import { applyRankTiebreaks, poolLabel, poolStandings } from '../engine/pools'
+import { addTiebreak, standingsTies } from '../engine/tournament'
 import { TiebreakResult } from './components/TiebreakResult'
 import { downloadJson } from '../lib/download'
 import { TopBar } from './components/TopBar'
@@ -10,10 +10,18 @@ import { Standings } from './components/Standings'
 import { NotFound } from './Setup'
 
 export function Table({ id }: { id: string }) {
-  const { tournament } = useTournament(id)
+  const { tournament, update } = useTournament(id)
   if (tournament === null) return <NotFound />
 
-  const rows = computeStandings(tournament.players, tournament.matches, tournament.headToHead)
+  const ties = standingsTies(tournament)
+  const rawRows = computeStandings(tournament.players, tournament.matches, tournament.headToHead)
+  /*
+    單循環張表本身就係最終結果，所以打完加賽要重排、解開並列 ——
+    唔重排嘅話你打完加賽返嚟睇，兩個人仲係並列第 1，等於冇打過。
+
+    另外兩個模式張表係階段記錄，加賽淨係決定邊個出線，所以照顯示並列。
+  */
+  const rows = tournament.mode === 'roundRobin' ? applyRankTiebreaks(rawRows, ties) : rawRows
   const done = completedCount(tournament.matches)
 
   /**
@@ -41,9 +49,6 @@ export function Table({ id }: { id: string }) {
           tournament.headToHead,
         )
       : null
-
-  // 加賽另出一張表 —— 唔會撈入小組排名表，嗰度照顯示並列。
-  const ties = standingsTies(tournament)
 
   return (
     <>
@@ -89,12 +94,23 @@ export function Table({ id }: { id: string }) {
                 {roundRobinChamp.pointsFor}
               </span>
             </div>
-            {roundRobinChamp.tied && (
-              <p className="note">
-                <span>·</span>
-                <span>第一位有人並列，四條規則都分唔開。要分先後就要加賽或者抽籤。</span>
-              </p>
-            )}
+            {roundRobinChamp.tied &&
+              (() => {
+                const tie = ties.find((s) => s.ids.includes(roundRobinChamp.playerId))
+                if (tie === undefined) return null
+                return (
+                  <p className="note">
+                    <span>·</span>
+                    <span>
+                      {tie.attempt === 0
+                        ? '第一位有人並列，四條規則都分唔開。打加賽先分到邊個係冠軍。'
+                        : tie.played
+                          ? `第 ${tie.attempt} 次加賽又分唔開，要再打多一次。`
+                          : `第 ${tie.attempt} 次加賽打緊，打完先知邊個係冠軍。`}
+                    </span>
+                  </p>
+                )
+              })()}
           </div>
         )}
 
@@ -111,7 +127,36 @@ export function Table({ id }: { id: string }) {
         </div>
 
         {pools === null ? (
-          <Standings rows={rows} />
+          <>
+            <Standings rows={rows} />
+            {ties.length > 0 && (
+              <div className="stack">
+                {/*
+                  有段拆唔掂就要排；但如果已經排咗而未打完，就唔好再彈粒掣出嚟
+                  叫人再排 —— 同籤表頁嗰個 `waiting` 一樣嘅道理。
+                */}
+                {ties.some((s) => !s.resolved) &&
+                  !ties.some((s) => s.attempt > 0 && !s.played) && (
+                    <button
+                      className="btn btn--primary chamfer"
+                      onClick={() => update((t) => ({ ...t, matches: addTiebreak(t) }))}
+                    >
+                      排加賽
+                    </button>
+                  )}
+                {ties
+                  .filter((s) => s.matches.length > 0)
+                  .map((s) => (
+                    <TiebreakResult
+                      key={s.key}
+                      tie={s}
+                      players={tournament.players}
+                      matchHref={(mid) => `#/t/${id}/m/${mid}`}
+                    />
+                  ))}
+              </div>
+            )}
+          </>
         ) : (
           <div className="poolgrid">
             {pools.map((table) => (
@@ -138,8 +183,8 @@ export function Table({ id }: { id: string }) {
         <p className="note">
           <span>·</span>
           <span>
-            排名次序：先比勝場 → 兩個人同勝場就睇佢哋當初邊個贏咗邊個 → 總得分 → 得失分差。
-            未打完嘅場次一分都唔計。
+            排名次序：勝場 → 總得分 → 得失分差 → 極限勝出次數
+            {tournament.headToHead ? ' → 佢哋之間邊個贏過邊個' : ''}。未打完嘅場次一分都唔計。
           </span>
         </p>
         {pools !== null && (
