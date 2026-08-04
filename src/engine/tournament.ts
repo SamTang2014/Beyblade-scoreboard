@@ -132,8 +132,8 @@ function cutSeeds(t: Tournament): string[] {
     if (t.poolCount === null || t.advancePerPool === null) return []
     // 有組拆唔掂就唔准砌 —— 唔擋嘅話會靜靜雞照排序攞頭幾個，
     // 而排序最後 fallback 係個名，即係「邊個出線」變成睇個名點串。
-    if (tiesPending(t.players, t.matches, t.poolCount, t.advancePerPool)) return []
-    return poolSeedOrder(t.players, t.matches, t.poolCount, t.advancePerPool)
+    if (tiesPending(t.players, t.matches, t.poolCount, t.advancePerPool, t.headToHead)) return []
+    return poolSeedOrder(t.players, t.matches, t.poolCount, t.advancePerPool, t.headToHead)
   }
   if (t.cutSize === null) return []
   return computeStandings(t.players, groupMatches(t.matches), t.headToHead)
@@ -165,13 +165,13 @@ export function hasStandings(mode: TournamentMode): boolean {
 export function poolTies(t: Tournament): TieState[] {
   if (t.mode !== 'poolsThenKnockout') return []
   if (t.poolCount === null || t.advancePerPool === null) return []
-  return tieStates(t.players, t.matches, t.poolCount, t.advancePerPool)
+  return tieStates(t.players, t.matches, t.poolCount, t.advancePerPool, t.headToHead)
 }
 
 /** 排下一次加賽，返返成個新場次表。冇嘢要排就原封不動。 */
 export function addTiebreak(t: Tournament): Match[] {
   if (t.mode !== 'poolsThenKnockout') return t.matches
   if (t.poolCount === null || t.advancePerPool === null) return t.matches
-  const more = nextTiebreak(t.players, t.matches, t.poolCount, t.advancePerPool)
+  const more = nextTiebreak(t.players, t.matches, t.poolCount, t.advancePerPool, t.headToHead)
   return more.length === 0 ? t.matches : [...t.matches, ...more]
 }

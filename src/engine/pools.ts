@@ -1,6 +1,6 @@
 import { bracketSize, drawOrder, seedSlots } from './bracket'
 import { groupMatches, mergeSchedule } from './schedule'
-import { matchScore, matchWinnerId } from './rules'
+import { matchScore, matchWinnerId, xtremeInMatch } from './rules'
 import { computeStandings } from './standings'
 import type { Match, Player, StandingRow } from './types'
 
@@ -167,13 +167,18 @@ export interface PoolTable {
  * 同一套 tiebreak（`computeStandings` 唔使改），淨係餵入去嘅選手同場次
  * 換成嗰組嘅 —— 所以 B 組打完一場唔會郁到 A 組嘅名次。
  */
-export function poolStandings(players: Player[], matches: Match[], poolCount: number): PoolTable[] {
+export function poolStandings(
+  players: Player[],
+  matches: Match[],
+  poolCount: number,
+  headToHead = false,
+): PoolTable[] {
   const group = groupMatches(matches)
   return poolsOf(players, poolCount).map((pool, i) => {
     const ids = new Set(pool.map((p) => p.id))
     // 兩邊一定同組，所以查一邊就夠。
     const mine = group.filter((m) => m.aId !== null && ids.has(m.aId))
-    return { pool: i + 1, players: pool, rows: computeStandings(pool, mine) }
+    return { pool: i + 1, players: pool, rows: computeStandings(pool, mine, headToHead) }
   })
 }
 
@@ -190,13 +195,14 @@ export function poolSeedOrder(
   matches: Match[],
   poolCount: number,
   advancePerPool: number,
+  headToHead = false,
 ): string[] {
-  const tables = poolStandings(players, matches, poolCount).map((t) => ({
+  const tables = poolStandings(players, matches, poolCount, headToHead).map((t) => ({
     ...t,
     rows: applyTiebreaks(t, matches, advancePerPool),
   }))
   const globalRank = new Map(
-    computeStandings(players, groupMatches(matches)).map((r, i) => [r.playerId, i]),
+    computeStandings(players, groupMatches(matches), headToHead).map((r, i) => [r.playerId, i]),
   )
 
   const seeds: string[] = []
@@ -378,13 +384,14 @@ function tiebreaksFor(matches: Match[], pool: number, attempt: number): Match[] 
 }
 
 /**
- * 加賽成績排先後：先睇勝場，再睇分差。
+ * 加賽成績排先後：勝場 → 分差 → 極限次數。
  *
  * 唔用 `computeStandings` —— 嗰個喺勝場之後仲夾住「總得分」先至到分差，
- * 但規則講明係勝場 → 分差。加賽場數少，多塞一條規則落去淨係令人估唔到點解。
+ * 但加賽嘅規則係直接跳去分差。加賽場數少，尾段多一條極限拆得開多啲，
+ * 唔使動不動就叫人打多輪。
  */
-function rankByTiebreak(ids: string[], played: Match[]): TiebreakRow[] {
-  const stat = new Map(ids.map((id) => [id, { id, wins: 0, diff: 0 }]))
+export function rankByTiebreak(ids: string[], played: Match[]): TiebreakRow[] {
+  const stat = new Map(ids.map((id) => [id, { id, wins: 0, diff: 0, xtreme: 0 }]))
   for (const m of played) {
     if (m.aId === null || m.bId === null) continue
     const a = stat.get(m.aId)
@@ -393,12 +400,16 @@ function rankByTiebreak(ids: string[], played: Match[]): TiebreakRow[] {
     const { a: sa, b: sb } = matchScore(m)
     a.diff += sa - sb
     b.diff += sb - sa
+    a.xtreme += xtremeInMatch(m, m.aId)
+    b.xtreme += xtremeInMatch(m, m.bId)
     const winner = matchWinnerId(m)
     if (winner === m.aId) a.wins += 1
     else if (winner === m.bId) b.wins += 1
   }
   // 排唔開嘅照留返原本次序，等上面自己判斷分唔分得開。
-  return [...stat.values()].sort((x, y) => y.wins - x.wins || y.diff - x.diff)
+  return [...stat.values()].sort(
+    (x, y) => y.wins - x.wins || y.diff - x.diff || y.xtreme - x.xtreme,
+  )
 }
 
 /** 加賽入面一個人嘅成績。 */
@@ -407,6 +418,8 @@ export interface TiebreakRow {
   wins: number
   /** 加賽場次嘅得失分差。 */
   diff: number
+  /** 加賽場次嘅極限勝出次數。 */
+  xtreme: number
 }
 
 /** 一個組喺出線線上面嘅並列狀況。 */
@@ -440,10 +453,11 @@ export function tieStates(
   matches: Match[],
   poolCount: number,
   advancePerPool: number,
+  headToHead = false,
 ): TieState[] {
   const out: TieState[] = []
 
-  for (const table of poolStandings(players, matches, poolCount)) {
+  for (const table of poolStandings(players, matches, poolCount, headToHead)) {
     const tie = tiedAtCut(table.rows, advancePerPool)
     if (tie === null) continue
 
@@ -461,7 +475,8 @@ export function tieStates(
       const above = results[tie.slots - 1]!
       const below = results[tie.slots]!
       // 淨係要線上線下嗰兩個分得開就夠 —— 唔關事嗰啲分唔開都唔使再打。
-      resolved = above.wins !== below.wins || above.diff !== below.diff
+      resolved =
+        above.wins !== below.wins || above.diff !== below.diff || above.xtreme !== below.xtreme
     }
 
     out.push({ pool: table.pool, ids: tie.ids, slots: tie.slots, attempt, matches: mine, played, resolved, results })
@@ -476,8 +491,9 @@ export function tiesPending(
   matches: Match[],
   poolCount: number,
   advancePerPool: number,
+  headToHead = false,
 ): boolean {
-  return tieStates(players, matches, poolCount, advancePerPool).some((s) => !s.resolved)
+  return tieStates(players, matches, poolCount, advancePerPool, headToHead).some((s) => !s.resolved)
 }
 
 /**
@@ -491,9 +507,10 @@ export function nextTiebreak(
   matches: Match[],
   poolCount: number,
   advancePerPool: number,
+  headToHead = false,
 ): Match[] {
   const out: Match[] = []
-  for (const s of tieStates(players, matches, poolCount, advancePerPool)) {
+  for (const s of tieStates(players, matches, poolCount, advancePerPool, headToHead)) {
     if (s.resolved) continue
     if (s.attempt === 0) out.push(...buildTiebreak(s.pool, s.ids, 1))
     else if (s.played) out.push(...buildTiebreak(s.pool, s.ids, s.attempt + 1))

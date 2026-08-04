@@ -4,6 +4,7 @@ import {
   nextTiebreak,
   poolSeedOrder,
   poolStandings,
+  rankByTiebreak,
   tiedAtCut,
   tieStates,
   tiesPending,
@@ -213,5 +214,101 @@ describe('加賽唔會污染小組排名表', () => {
     expect(seeds).toContain('C')
     expect(seeds).toContain('A')
     expect(seeds).not.toContain('B')
+  })
+})
+
+describe('加賽排名加埋極限次數', () => {
+  /** 一場打完嘅加賽，贏家撳兩次「爆咗」攞夠 4 分 —— 一次極限都冇。 */
+  function noX(winner: string, loser: string, id: string): Match {
+    return {
+      id,
+      stage: 'tiebreak',
+      round: 1,
+      order: 1,
+      aId: winner,
+      bId: loser,
+      aFrom: null,
+      bFrom: null,
+      rounds: [
+        { winnerId: winner, finish: 'burst' },
+        { winnerId: winner, finish: 'burst' },
+      ],
+    }
+  }
+
+  it('勝場同分差都一樣，靠極限次數拆得開', () => {
+    // A 贏 B 4–0（極限 + 轉贏），B 贏 A 4–0（兩次爆咗）。
+    // 勝場 1:1、分差 0:0，淨係極限次數唔同。
+    const rows = rankByTiebreak(
+      ['A', 'B'],
+      [played('A', 'B', 'tb3r1m1', 'tiebreak'), noX('B', 'A', 'tb3r1m2')],
+    )
+    expect(rows.map((r) => r.wins)).toEqual([1, 1])
+    expect(rows.map((r) => r.diff)).toEqual([0, 0])
+    expect(rows.map((r) => r.id)).toEqual(['A', 'B'])
+    expect(rows.map((r) => r.xtreme)).toEqual([1, 0])
+  })
+
+  it('線上線下靠極限分得開，就唔使再打多一次加賽', () => {
+    // 加賽又打成循環、全部 4–0 —— 勝場同分差全部一樣，舊規則要再打過。
+    // 而家 C 贏嗰場冇極限，所以 C 包尾，線上（頭 2 個）同線下分得開。
+    const all = [
+      ...CYCLE,
+      played('A', 'B', 'tb3r1m1', 'tiebreak'), // A 4–0，1 次極限
+      noX('C', 'A', 'tb3r1m2'), // C 4–0，0 次極限
+      played('B', 'C', 'tb3r1m3', 'tiebreak'), // B 4–0，1 次極限
+    ]
+    const [state] = tieStates(ABC, all, 3, 2)
+    expect(state!.played).toBe(true)
+    expect(state!.results.map((r) => r.xtreme)).toEqual([1, 1, 0])
+    expect(state!.results[2]!.id).toBe('C')
+    expect(state!.resolved).toBe(true)
+    expect(tiesPending(ABC, all, 3, 2)).toBe(false)
+  })
+})
+
+describe('小組排名收得到同分點拆嘅選項', () => {
+  /**
+   * A 贏 B、A 贏 C、B 贏 C、B 贏 D、C 贏 D、D 贏 A。
+   *
+   * A 同 B 都係 2 勝 1 負、8 分、失 4 分、分差 +4、2 次極限 —— 主鏈四樣全同。
+   * A 贏過 B，所以開咗選項先分得開。
+   */
+  const TWO: Match[] = [
+    group('A', 'B'),
+    group('A', 'C'),
+    group('B', 'C'),
+    group('B', 'D'),
+    group('C', 'D'),
+    group('D', 'A'),
+  ]
+
+  const poolRows = (headToHead: boolean) =>
+    poolStandings(ABC, TWO, 3, headToHead).find((t) => t.pool === 3)!.rows
+
+  it('兩個人爭一個位：閂咗要打加賽，開咗睇對賽記錄就唔使', () => {
+    const off = poolRows(false)
+    expect(off.find((r) => r.name === 'A')!.rank).toBe(1)
+    expect(off.find((r) => r.name === 'B')!.rank).toBe(1)
+    expect(tiesPending(ABC, TWO, 3, 1)).toBe(true)
+
+    const on = poolRows(true)
+    expect(on.find((r) => r.name === 'A')!.rank).toBe(1)
+    expect(on.find((r) => r.name === 'B')!.rank).toBe(2)
+    expect(tiesPending(ABC, TWO, 3, 1, true)).toBe(false)
+  })
+
+  it('三個人回圈：內部同整體一模一樣，開咗都拆唔開，加賽照要打', () => {
+    for (const headToHead of [false, true]) {
+      const rows = poolStandings(ABC, CYCLE, 3, headToHead).find((t) => t.pool === 3)!.rows
+      for (const name of ['A', 'B', 'C']) {
+        expect(rows.find((r) => r.name === name)!.rank).toBe(1)
+      }
+    }
+    expect(tiesPending(ABC, CYCLE, 3, 2, true)).toBe(true)
+  })
+
+  it('poolSeedOrder 收得到個選項', () => {
+    expect(poolSeedOrder(ABC, TWO, 3, 2, true).sort()).toEqual(['A', 'B'])
   })
 })
