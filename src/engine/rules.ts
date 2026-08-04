@@ -1,4 +1,4 @@
-import type { FinishType, Match, MatchStatus } from './types'
+import type { FinishType, Match, MatchStatus, RoundResult } from './types'
 
 /** Beyblade X 官方分數。 */
 export const FINISH_POINTS: Record<FinishType, number> = {
@@ -49,17 +49,54 @@ export function isReady(match: Match): boolean {
   return match.aId !== null && match.bId !== null
 }
 
+/**
+ * 真係計入分數嗰啲 round。
+ *
+ * 一到 4 分就停 —— 手改過嘅檔可能多咗 round，唔可以當佢哋存在。
+ * 分數同極限次數兩樣嘢都要跟同一條界線，所以喺呢度出一次，唔好喺兩處各寫一次：
+ * 寫兩次就一定有一日會出現「總分冇變但極限次數升咗」。
+ */
+export function scoredRounds(match: Match): RoundResult[] {
+  if (!isReady(match)) return []
+  const out: RoundResult[] = []
+  let a = 0
+  let b = 0
+  for (const r of match.rounds) {
+    if (a >= MATCH_TARGET || b >= MATCH_TARGET) break
+    if (r.winnerId === match.aId) a += FINISH_POINTS[r.finish]
+    else if (r.winnerId === match.bId) b += FINISH_POINTS[r.finish]
+    out.push(r)
+  }
+  return out
+}
+
 export function matchScore(match: Match): MatchScore {
   let a = 0
   let b = 0
-  if (!isReady(match)) return { a, b }
-  for (const r of match.rounds) {
-    if (a >= MATCH_TARGET || b >= MATCH_TARGET) break
+  for (const r of scoredRounds(match)) {
     const pts = FINISH_POINTS[r.finish]
     if (r.winnerId === match.aId) a += pts
     else if (r.winnerId === match.bId) b += pts
   }
   return { a, b }
+}
+
+/** 一場入面某人以極限贏咗幾多個 round。打緊嘅場都數得到。 */
+export function xtremeInMatch(match: Match, playerId: string): number {
+  return scoredRounds(match).filter((r) => r.winnerId === playerId && r.finish === 'xtreme').length
+}
+
+/**
+ * 多場加埋。**未打完嘅場唔計** —— 同排名表其他數（勝場、得分、分差）同一條界線，
+ * 唔係排名會打到一半跳嚟跳去。
+ *
+ * 餵咩場次就數咩場次：排名表餵小組場、加賽表餵嗰次加賽嘅場。
+ */
+export function xtremeWins(matches: Match[], playerId: string): number {
+  return matches.reduce(
+    (n, m) => n + (matchWinnerId(m) === null ? 0 : xtremeInMatch(m, playerId)),
+    0,
+  )
 }
 
 /** 打完咗嘅場次返個贏家 id，未打完返 null。 */

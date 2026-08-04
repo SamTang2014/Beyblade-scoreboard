@@ -7,6 +7,9 @@ import {
   matchStatus,
   matchWinnerId,
   pointsToWin,
+  scoredRounds,
+  xtremeInMatch,
+  xtremeWins,
 } from './rules'
 import type { FinishType, Match } from './types'
 
@@ -109,5 +112,64 @@ describe('場次 id', () => {
 
   it('唔同對人唔同 id', () => {
     expect(matchKey('p1', 'p2')).not.toBe(matchKey('p1', 'p3'))
+  })
+})
+
+describe('極限勝出次數', () => {
+  it('數自己以極限贏嗰啲 round', () => {
+    const m = match([
+      { w: 'a', f: 'xtreme' }, // a 3
+      { w: 'b', f: 'spin' }, // b 1
+      { w: 'a', f: 'spin' }, // a 4，打完
+    ])
+    expect(xtremeInMatch(m, 'p1')).toBe(1)
+    expect(xtremeInMatch(m, 'p2')).toBe(0)
+  })
+
+  it('輸咗嗰場入面自己贏嘅極限照數', () => {
+    const m = match([
+      { w: 'b', f: 'xtreme' }, // b 3
+      { w: 'a', f: 'xtreme' }, // a 3
+      { w: 'b', f: 'spin' }, // b 4，b 贏
+    ])
+    expect(xtremeInMatch(m, 'p1')).toBe(1)
+    expect(xtremeInMatch(m, 'p2')).toBe(1)
+  })
+
+  it('夠 4 分之後嗰啲 round 唔數，同 matchScore 同一條界線', () => {
+    const m = match([
+      { w: 'a', f: 'xtreme' }, // a 3
+      { w: 'a', f: 'xtreme' }, // a 6，打完
+      { w: 'a', f: 'xtreme' }, // 呢個唔應該存在，唔數
+      { w: 'b', f: 'xtreme' }, // 同上
+    ])
+    expect(matchScore(m)).toEqual({ a: 6, b: 0 })
+    expect(scoredRounds(m)).toHaveLength(2)
+    expect(xtremeInMatch(m, 'p1')).toBe(2)
+    expect(xtremeInMatch(m, 'p2')).toBe(0)
+  })
+
+  it('對手未定嘅場次乜都數唔到', () => {
+    const m = { ...match([{ w: 'a', f: 'xtreme' as const }]), bId: null }
+    expect(scoredRounds(m)).toEqual([])
+    expect(xtremeInMatch(m, 'p1')).toBe(0)
+  })
+
+  it('xtremeWins 加埋多場，但未打完嘅場唔計', () => {
+    const done = match([
+      { w: 'a', f: 'xtreme' },
+      { w: 'a', f: 'spin' }, // a 4，打完
+    ])
+    const live = match([{ w: 'a', f: 'xtreme' }]) // a 3，未夠 4
+
+    expect(xtremeWins([done], 'p1')).toBe(1)
+    expect(xtremeWins([live], 'p1')).toBe(0)
+    expect(xtremeWins([done, live], 'p1')).toBe(1)
+    // 打緊嗰場要靠 xtremeInMatch 先數到 —— 入分版嗰個 +N 就係咁嚟。
+    expect(xtremeInMatch(live, 'p1')).toBe(1)
+  })
+
+  it('冇場次就係 0', () => {
+    expect(xtremeWins([], 'p1')).toBe(0)
   })
 })
