@@ -858,6 +858,14 @@ table {
 }
 
 /*
+ * 個標籤而家係 flex（要塞個 ⚡ 落 極限 嗰粒），而 flex container 唔理 text-align ——
+ * 所以紅邊要另外講明推去尾，否則四粒掣嘅標籤會貼左、下面嘅說明貼右，同一粒掣裂開兩邊。
+ */
+.side--red .finishbtn__label {
+  justify-content: flex-end;
+}
+
+/*
  * 極限嗰粒掣。3 分嘅嘢，同 1 分嘅轉贏一個樣就分唔到輕重 ——
  * 而且極限次數而家係拆並列嘅關鍵，全個 app 一律用金色 + ⚡ 講佢。
  */
