@@ -93,6 +93,8 @@ export interface StandingRow {
   pointsAgainst: number
   /** 得失分差。 */
   diff: number
+  /** 極限勝出次數。同分嗰陣用嚟拆並列。 */
+  xtremeWins: number
   /** 名次，1 起計。並列會共用同一個名次。 */
   rank: number
   /** true 代表同上面或下面嘅人分唔到高低。 */

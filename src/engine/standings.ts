@@ -1,16 +1,20 @@
-import { matchKey, matchScore, matchWinnerId } from './rules'
+import { matchScore, matchWinnerId, xtremeInMatch } from './rules'
 import type { Match, Player, StandingRow } from './types'
 
 /**
  * 排名比較次序（同 spec 一致，唔好擅自改）：
  *
  *   1. 勝場數
- *   2. 對賽成績 —— 只喺啱啱兩個人同勝場、而且佢哋嗰場打完咗嘅時候先用
- *   3. 總得分
- *   4. 得失分差
- *   5. 仲係一樣 → 並列，唔自動分先後
+ *   2. 總得分
+ *   3. 得失分差
+ *   4. 極限勝出次數
+ *   5. 對賽成績 —— 淨係 `headToHead` 開咗先做，見下面 `miniLeague`
+ *   6. 仲係一樣 → 並列，唔自動分先後
  *
  * 未打完嘅場次一律唔計，所以排名唔會打到一半跳嚟跳去。
+ *
+ * 排序最後 fallback 係個名，但**個名唔算「分得開」** —— 佢淨係令顯示次序定死，
+ * 唔會令兩個樣樣一樣嘅人變咗有高低。
  *
  * 純 function：入咩出咩，冇 side effect。
  */
@@ -22,16 +26,36 @@ interface Acc {
   losses: number
   pointsFor: number
   pointsAgainst: number
+  xtremeWins: number
 }
 
-export function computeStandings(players: Player[], matches: Match[]): StandingRow[] {
+/** 小循環入面一個人嘅內部成績。 */
+interface MiniRow {
+  wins: number
+  diff: number
+  xtreme: number
+}
+
+export function computeStandings(
+  players: Player[],
+  matches: Match[],
+  headToHead = false,
+): StandingRow[] {
   const acc = new Map<string, Acc>()
   for (const p of players) {
-    acc.set(p.id, { player: p, played: 0, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0 })
+    acc.set(p.id, {
+      player: p,
+      played: 0,
+      wins: 0,
+      losses: 0,
+      pointsFor: 0,
+      pointsAgainst: 0,
+      xtremeWins: 0,
+    })
   }
 
-  /** 打完咗嘅對賽成績：pair key → 贏家 id。 */
-  const headToHead = new Map<string, string>()
+  /** 真係入咗數嘅場次。小循環要重新翻呢批，所以順手留低。 */
+  const counted: Match[] = []
 
   for (const m of matches) {
     // 淨係循環階段入排名表。淘汰賽睇籤表；加賽係用嚟拆並列嘅，
@@ -53,6 +77,8 @@ export function computeStandings(players: Player[], matches: Match[]): StandingR
     a.pointsAgainst += sb
     b.pointsFor += sb
     b.pointsAgainst += sa
+    a.xtremeWins += xtremeInMatch(m, m.aId)
+    b.xtremeWins += xtremeInMatch(m, m.bId)
 
     if (winnerId === m.aId) {
       a.wins += 1
@@ -62,7 +88,7 @@ export function computeStandings(players: Player[], matches: Match[]): StandingR
       a.losses += 1
     }
 
-    headToHead.set(matchKey(m.aId, m.bId), winnerId)
+    counted.push(m)
   }
 
   const rows: StandingRow[] = [...acc.values()].map((r) => ({
@@ -74,51 +100,63 @@ export function computeStandings(players: Player[], matches: Match[]): StandingR
     pointsFor: r.pointsFor,
     pointsAgainst: r.pointsAgainst,
     diff: r.pointsFor - r.pointsAgainst,
+    xtremeWins: r.xtremeWins,
     rank: 0,
     tied: false,
   }))
 
-  // 第 1、3、4 條規則。第 2 條（對賽成績）要成組人齊咗先判斷，跟住做。
   rows.sort(
     (x, y) =>
       y.wins - x.wins ||
       y.pointsFor - x.pointsFor ||
       y.diff - x.diff ||
+      y.xtremeWins - x.xtremeWins ||
       x.name.localeCompare(y.name, 'zh-HK'),
   )
 
-  // 第 2 條：啱啱兩個人同勝場，就睇佢哋嗰場邊個贏，蓋過總得分。
-  const decidedByHeadToHead = new Set<number>()
-  for (let start = 0; start < rows.length; ) {
-    let end = start + 1
-    while (end < rows.length && rows[end]!.wins === rows[start]!.wins) end += 1
+  // 第 5 條：主鏈四樣全同嗰班人，開個小循環出嚟再拆。
+  // index i 喺呢個 set 入面 = 小循環將 i 同 i-1 分咗高低。
+  const brokenByMini = new Set<number>()
+  if (headToHead) {
+    for (let start = 0; start < rows.length; ) {
+      let end = start + 1
+      while (end < rows.length && sameMain(rows[start]!, rows[end]!)) end += 1
 
-    if (end - start === 2) {
-      const first = rows[start]!
-      const second = rows[start + 1]!
-      const winnerId = headToHead.get(matchKey(first.playerId, second.playerId))
-      if (winnerId !== undefined) {
-        if (winnerId === second.playerId) {
-          rows[start] = second
-          rows[start + 1] = first
+      if (end - start >= 2) {
+        const block = rows.slice(start, end)
+        const mini = miniLeague(
+          block.map((r) => r.playerId),
+          counted,
+        )
+        block.sort((x, y) => {
+          const mx = mini.get(x.playerId)!
+          const my = mini.get(y.playerId)!
+          return (
+            my.wins - mx.wins ||
+            my.diff - mx.diff ||
+            my.xtreme - mx.xtreme ||
+            x.name.localeCompare(y.name, 'zh-HK')
+          )
+        })
+        for (let i = 0; i < block.length; i++) rows[start + i] = block[i]!
+        for (let i = 1; i < block.length; i++) {
+          const prev = mini.get(block[i - 1]!.playerId)!
+          const cur = mini.get(block[i]!.playerId)!
+          if (prev.wins !== cur.wins || prev.diff !== cur.diff || prev.xtreme !== cur.xtreme) {
+            brokenByMini.add(start + i)
+          }
         }
-        // 記住呢兩個人係分到高低嘅，唔好當佢哋並列。
-        decidedByHeadToHead.add(start + 1)
       }
-    }
 
-    start = end
+      start = end
+    }
   }
 
   // 名次：分得開就 +1，分唔開就同上面共用同一個名次。
   const separated: boolean[] = rows.map((row, i) => {
     if (i === 0) return true
-    const prev = rows[i - 1]!
-    if (prev.wins !== row.wins) return true
-    if (decidedByHeadToHead.has(i)) return true
-    if (prev.pointsFor !== row.pointsFor) return true
-    if (prev.diff !== row.diff) return true
-    return false
+    if (!sameMain(rows[i - 1]!, row)) return true
+    return brokenByMini.has(i)
   })
 
   for (let i = 0; i < rows.length; i++) {
@@ -128,6 +166,50 @@ export function computeStandings(players: Player[], matches: Match[]): StandingR
   }
 
   return rows
+}
+
+/** 主鏈四樣數字全部一樣先至輪到小循環。 */
+function sameMain(a: StandingRow, b: StandingRow): boolean {
+  return (
+    a.wins === b.wins &&
+    a.pointsFor === b.pointsFor &&
+    a.diff === b.diff &&
+    a.xtremeWins === b.xtremeWins
+  )
+}
+
+/**
+ * 小循環：淨係攞呢班人**之間**打完咗嘅場次，重新計一次。
+ *
+ * 兩個人嘅時候呢條式自動退化成「邊個贏過邊個」—— 贏嗰個內部勝場 1 > 0。
+ * 所以兩人同三人共用呢一條 code path，唔使分開寫。
+ *
+ * 唔遞迴：拆完仲有人一樣就係並列，唔會喺並列嗰班人入面再開多個小循環。
+ *
+ * 一個要記住嘅結果：如果並列嗰班人**就係成組人**（例如三個人自己一組打成回圈），
+ * 佢哋之間嘅場次就係全部場次，內部數字必然等於整體數字 —— 主鏈已經全同，
+ * 內部就實全同，點都拆唔開。要拆得開，個組一定要大過並列嗰班人。
+ */
+function miniLeague(ids: string[], matches: Match[]): Map<string, MiniRow> {
+  const inBlock = new Set(ids)
+  const stat = new Map<string, MiniRow>(ids.map((id) => [id, { wins: 0, diff: 0, xtreme: 0 }]))
+
+  for (const m of matches) {
+    if (m.aId === null || m.bId === null) continue
+    if (!inBlock.has(m.aId) || !inBlock.has(m.bId)) continue
+
+    const a = stat.get(m.aId)!
+    const b = stat.get(m.bId)!
+    const { a: sa, b: sb } = matchScore(m)
+    a.diff += sa - sb
+    b.diff += sb - sa
+    a.xtreme += xtremeInMatch(m, m.aId)
+    b.xtreme += xtremeInMatch(m, m.bId)
+    if (matchWinnerId(m) === m.aId) a.wins += 1
+    else b.wins += 1
+  }
+
+  return stat
 }
 
 /** 全部場次都打完咗未。 */
