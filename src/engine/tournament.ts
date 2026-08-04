@@ -136,7 +136,7 @@ function cutSeeds(t: Tournament): string[] {
     return poolSeedOrder(t.players, t.matches, t.poolCount, t.advancePerPool)
   }
   if (t.cutSize === null) return []
-  return computeStandings(t.players, groupMatches(t.matches))
+  return computeStandings(t.players, groupMatches(t.matches), t.headToHead)
     .slice(0, t.cutSize)
     .map((r) => r.playerId)
 }

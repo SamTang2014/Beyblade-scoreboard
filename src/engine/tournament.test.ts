@@ -40,6 +40,7 @@ function tournament(
     cutSize,
     poolCount,
     advancePerPool,
+    headToHead: false,
     players: players(n),
     matches: [],
   }

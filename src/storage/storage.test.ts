@@ -378,3 +378,46 @@ describe('小組賽欄位', () => {
     expect(back.advancePerPool).toBe(2)
   })
 })
+
+describe('同分點拆嘅選項', () => {
+  it('新賽事 default 係閂', () => {
+    expect(store().create('測試').headToHead).toBe(false)
+  })
+
+  it('舊檔冇呢個 field 就當閂', () => {
+    const t = parseTournament({
+      id: 't1',
+      name: '舊賽事',
+      createdAt: 0,
+      updatedAt: 0,
+      mode: 'roundRobin',
+      players: [],
+      matches: [],
+    })
+    expect(t.headToHead).toBe(false)
+  })
+
+  it('唔係 true 嘅垃圾值一律當閂', () => {
+    const base = {
+      id: 't1',
+      name: '賽事',
+      createdAt: 0,
+      updatedAt: 0,
+      mode: 'roundRobin',
+      players: [],
+      matches: [],
+    }
+    expect(parseTournament({ ...base, headToHead: 'yes' }).headToHead).toBe(false)
+    expect(parseTournament({ ...base, headToHead: 1 }).headToHead).toBe(false)
+    expect(parseTournament({ ...base, headToHead: null }).headToHead).toBe(false)
+    expect(parseTournament({ ...base, headToHead: true }).headToHead).toBe(true)
+  })
+
+  it('匯出再匯入，個值保持住', () => {
+    const s = store()
+    const made = s.create('測試')
+    s.save({ ...made, headToHead: true })
+    const back = parseExportFile(s.exportJson(made.id)).tournaments[0]!
+    expect(back.headToHead).toBe(true)
+  })
+})

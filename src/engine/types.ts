@@ -73,6 +73,13 @@ export interface Tournament {
   poolCount: number | null
   /** poolsThenKnockout 專用：每組出幾多個入籤表。其他模式係 null。 */
   advancePerPool: number | null
+  /**
+   * 同分點拆：主鏈（勝場 → 得分 → 分差 → 極限次數）四樣全同嗰陣，
+   * 使唔使再睇佢哋之間邊個贏過邊個。false = 直接當並列，交俾加賽處理。
+   *
+   * default false。舊檔冇呢個 field 一樣當 false。
+   */
+  headToHead: boolean
   players: Player[]
   matches: Match[]
 }
