@@ -60,7 +60,12 @@
 
 實作上喺 `rules.ts` 抽一個 `scoredRounds(match): RoundResult[]`，`matchScore` 同極限次數兩邊都行佢。兩處各自寫一次條界線就一定會走音。
 
-再喺 `rules.ts` 出一個 `xtremeWins(matches: Match[], playerId: string): number`。排名表、加賽表、入分版三個地方數嘅係唔同批場次，但數法一定要一樣 —— 三邊都叫呢個 function，各自負責餵邊批場次入去。
+再喺 `rules.ts` 出兩個：
+
+- `xtremeInMatch(match, playerId)` —— 一場入面某人嘅極限次數
+- `xtremeWins(matches, playerId)` —— 多場加埋，**未打完嘅場唔計**
+
+排名表、加賽表、入分版三個地方數嘅係唔同批場次，但數法一定要一樣 —— 三邊都叫呢兩個 function，各自負責餵邊批場次入去。入分版嗰個淡色 `+N` 直接叫 `xtremeInMatch`（打緊嗰場），所以佢先數得到未打完嘅場。
 
 ## 選項
 
@@ -81,7 +86,7 @@
 
 | 位置 | 顯示 | 數邊啲場 |
 |---|---|---|
-| 入分版，兩邊名下面 | `⚡ 3` | 跟打緊嗰場嘅階段，見下 |
+| 入分版，兩邊名下面 | `⚡ 2` `+1` | 跟打緊嗰場嘅階段，見下 |
 | 入分版 `.rlog` 逐 round 嗰行 | 極限嗰粒標實（⚡ + 高亮） | 當場 |
 | 排名表 + 電視版 | 「⚡」欄 | 小組／循環階段全部場次 |
 | 加賽結果表 | 「⚡」欄 | 淨係嗰次加賽嘅場次 |
@@ -90,11 +95,15 @@
 
 | 打緊嘅場次 | 名下面數乜 | 對得返邊張表 |
 |---|---|---|
-| `group` | 小組／循環階段全部場次，包括打緊嗰場 | 排名表「⚡」欄 |
-| `tiebreak` | 嗰次加賽嘅場次 | 加賽結果表「⚡」欄 |
+| `group` | 小組／循環階段**打完咗**嘅場次 | 排名表「⚡」欄 |
+| `tiebreak` | 嗰次加賽**打完咗**嘅場次 | 加賽結果表「⚡」欄 |
 | `bracket` | **唔顯示** | 淘汰賽冇排名表 |
 
 同一個標籤唔可以喺兩個地方係兩個數 —— 所以唔係「一個賽事總數」，係跟住當前階段走。純淘汰模式一律唔出。
+
+**呢場打緊嘅極限唔可以加埋落個主數度。** 排名表有條硬規矩：未打完嘅場次一分都唔計，排名先唔會打到一半跳嚟跳去（`standings.test.ts` 有測試守住）。如果入分版嗰個數計埋打緊嗰場，就會出現入分版 `⚡ 3` 但排名表 `⚡ 2`，正正就係上面禁止咗嘅「兩個數」。
+
+所以拆做兩橛：`⚡ 2` 係已入數（同排名表一模一樣），後面跟一個淡色 `+1` = 呢場暫時打咗幾多次極限。呢場打完，`+1` 消失、主數變 3。呢場一次極限都未打就唔出後面嗰橛。
 
 ## 加賽排名鏈
 
@@ -109,7 +118,7 @@
 | 檔案 | 改乜 |
 |---|---|
 | `engine/types.ts` | `Tournament.headToHead: boolean`；`StandingRow.xtremeWins: number` |
-| `engine/rules.ts` | 抽 `scoredRounds(match)`；`matchScore` 改用佢；新增 `xtremeWins(matches, playerId)` |
+| `engine/rules.ts` | 抽 `scoredRounds(match)`；`matchScore` 改用佢；新增 `xtremeInMatch` / `xtremeWins` |
 | `engine/standings.ts` | 重寫排序鏈；新增小循環；`computeStandings(players, matches, headToHead)` |
 | `engine/pools.ts` | `poolStandings` / `poolSeedOrder` / `tieStates` / `applyTiebreaks` 傳埋 `headToHead`；`rankByTiebreak` 加極限；`TiebreakRow` 加 `xtreme` |
 | `engine/tournament.ts` | `standings(t)` 傳 `t.headToHead` |
@@ -151,6 +160,7 @@
 - 輸咗嗰場入面自己贏嗰啲極限 round 照數
 - 淘汰賽同加賽場次唔會入到小組表嗰個數
 - `xtremeWins` 餵咩場次就數咩場次：同一個選手，餵 group 同餵 tiebreak 出兩個唔同數
+- `xtremeWins` 唔數未打完嘅場；`xtremeInMatch` 數（入分版嗰個 `+N` 靠佢）
 
 **選項同存檔**
 
