@@ -568,6 +568,53 @@ export function rankTieStates(
   return out
 }
 
+/**
+ * 用加賽結果重排排名表入面並列嗰幾段，順手解開 rank／tied。
+ * 拆唔掂嗰段原封不動 —— 照顯示並列。
+ *
+ * 純 function，唔會改到入面嗰啲 row：出嚟嘅係新 object，
+ * 因為 caller 好可能仲要攞原本嗰張表做第二件事（例如搵並列）。
+ *
+ * 單循環攞佢去顯示（張表本身就係最終結果）；大循環攞佢去決定種子
+ * （張表照顯示並列，但邊個入籤表要跟加賽）。
+ */
+export function applyRankTiebreaks(rows: StandingRow[], states: TieState[]): StandingRow[] {
+  const out = [...rows]
+
+  for (const s of states) {
+    if (!s.resolved) continue
+    // 同名次嘅人喺排序之後一定連住，所以搵到第一個就搵到成段。
+    const start = out.findIndex((r) => s.ids.includes(r.playerId))
+    if (start === -1) continue
+    const byId = new Map(out.map((r) => [r.playerId, r]))
+    s.results.forEach((r, i) => {
+      const row = byId.get(r.id)
+      if (row !== undefined) out[start + i] = row
+    })
+  }
+
+  const resolvedIds = new Set(states.filter((s) => s.resolved).flatMap((s) => s.ids))
+
+  // 重排完要重新畀名次。`row.rank` 仲係原本嗰個（上面冇改過），
+  // 所以「原本同名次」就係「本來並列」。
+  const sep: boolean[] = out.map((row, i) => {
+    if (i === 0) return true
+    if (out[i - 1]!.rank !== row.rank) return true
+    return resolvedIds.has(row.playerId)
+  })
+
+  const final: StandingRow[] = []
+  for (let i = 0; i < out.length; i++) {
+    const row = out[i]!
+    final.push({
+      ...row,
+      rank: sep[i] ? i + 1 : final[i - 1]!.rank,
+      tied: !sep[i] || (i + 1 < out.length && !sep[i + 1]),
+    })
+  }
+  return final
+}
+
 /** 仲有組拆唔掂就砌唔到籤表。 */
 export function tiesPending(
   players: Player[],
