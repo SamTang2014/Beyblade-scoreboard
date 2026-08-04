@@ -38,7 +38,7 @@ export function TiebreakResult({
         <div className="tablewrap">
           <table className="stand">
             <caption className="sr-only">
-              加賽成績。先比勝場，再比分差。頭 {tie.slots} 個出線。
+              加賽成績。先比勝場，再比分差，最後極限勝出次數。頭 {tie.slots} 個出線。
             </caption>
             <thead>
               <tr>
@@ -50,6 +50,10 @@ export function TiebreakResult({
                 </th>
                 <th scope="col">勝</th>
                 <th scope="col">分差</th>
+                <th scope="col">
+                  <span aria-hidden="true">⚡</span>
+                  <span className="sr-only">極限勝出次數</span>
+                </th>
                 <th scope="col">
                   <span className="sr-only">出唔出線</span>
                 </th>
@@ -69,6 +73,7 @@ export function TiebreakResult({
                       {r.diff > 0 ? '+' : ''}
                       {r.diff}
                     </td>
+                    <td className="stand__num">{r.xtreme}</td>
                     <td className="stand__num">
                       {through && <span className="through">出線</span>}
                     </td>
@@ -112,13 +117,14 @@ export function TiebreakResult({
         <p className="note">
           <span>·</span>
           <span>
-            先比加賽勝場，打和就比加賽分差。線上面 {tie.slots} 個出線，線下面冇份。
+            先比加賽勝場，打和就比分差，再打和就比極限勝出次數。線上面 {tie.slots} 個出線，
+            線下面冇份。
           </span>
         </p>
       ) : (
         <p className="note note--bad">
           <span>⚠</span>
-          <span>加賽勝場同分差都一樣，仲係分唔開 —— 要再打多一次。</span>
+          <span>加賽勝場、分差、極限次數全部一樣，仲係分唔開 —— 要再打多一次。</span>
         </p>
       )}
     </section>

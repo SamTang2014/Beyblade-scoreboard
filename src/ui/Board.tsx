@@ -28,13 +28,18 @@ export function Board({ id }: { id: string }) {
 
   const order = inPlayOrder(tournament.matches)
   const current = order.find((m) => matchWinnerId(m) === null) ?? null
-  const rows = computeStandings(tournament.players, tournament.matches)
+  const rows = computeStandings(tournament.players, tournament.matches, tournament.headToHead)
   const complete = isTournamentComplete(tournament.matches)
   const nameOf = (pid: string | null) =>
     pid === null ? '等緊上場' : (tournament.players.find((p) => p.id === pid)?.name ?? '？')
   const pools =
     tournament.mode === 'poolsThenKnockout' && tournament.poolCount !== null
-      ? poolStandings(tournament.players, tournament.matches, tournament.poolCount)
+      ? poolStandings(
+          tournament.players,
+          tournament.matches,
+          tournament.poolCount,
+          tournament.headToHead,
+        )
       : null
   const champText = complete ? championLine(tournament, rows) : ''
   const ties = poolTies(tournament)

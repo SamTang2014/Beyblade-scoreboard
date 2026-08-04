@@ -1,7 +1,8 @@
 import type { StandingRow } from '../../engine/types'
 
 /**
- * 排名表。頭三個規則睇得出嚟，第 4 條（得失分差）都擺埋，等人查得到。
+ * 排名表。四條主規則（勝場、得分、分差、極限次數）全部睇得出嚟，
+ * 失分擺埋落去等人查得到。
  *
  * `cutAfter` = 第幾名之後劃條出線線（小組賽用）。
  */
@@ -22,7 +23,7 @@ export function Standings({
     <div className="tablewrap">
       <table className="stand">
         <caption className="sr-only">
-          排名。先比勝場，再比對賽成績，跟住總得分，最後得失分差。
+          排名。先比勝場，再比總得分，跟住得失分差，最後極限勝出次數。
         </caption>
         <thead>
           <tr>
@@ -35,6 +36,10 @@ export function Standings({
             <th scope="col">勝</th>
             <th scope="col">負</th>
             <th scope="col">得分</th>
+            <th scope="col">
+              <span aria-hidden="true">⚡</span>
+              <span className="sr-only">極限勝出次數</span>
+            </th>
             {!compact && <th scope="col">失分</th>}
             {!compact && <th scope="col">分差</th>}
           </tr>
@@ -54,6 +59,7 @@ export function Standings({
               <td className="stand__num">{r.wins}</td>
               <td className="stand__num">{r.losses}</td>
               <td className="stand__num">{r.pointsFor}</td>
+              <td className="stand__num">{r.xtremeWins}</td>
               {!compact && <td className="stand__num">{r.pointsAgainst}</td>}
               {!compact && (
                 <td className="stand__num">

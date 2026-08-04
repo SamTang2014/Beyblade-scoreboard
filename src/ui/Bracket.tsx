@@ -257,6 +257,7 @@ function TieBreakers({
     tournament.players,
     tournament.matches,
     tournament.poolCount ?? 0,
+    tournament.headToHead,
   )
   // 有邊組排咗加賽但仲未打完 —— 打緊就唔好再彈粒「排加賽」出嚟。
   const waiting = ties.some((s) => s.attempt > 0 && !s.played)

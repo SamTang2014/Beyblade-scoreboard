@@ -13,7 +13,7 @@ export function Table({ id }: { id: string }) {
   const { tournament } = useTournament(id)
   if (tournament === null) return <NotFound />
 
-  const rows = computeStandings(tournament.players, tournament.matches)
+  const rows = computeStandings(tournament.players, tournament.matches, tournament.headToHead)
   const done = completedCount(tournament.matches)
 
   /**
@@ -34,7 +34,12 @@ export function Table({ id }: { id: string }) {
 
   const pools =
     tournament.mode === 'poolsThenKnockout' && tournament.poolCount !== null
-      ? poolStandings(tournament.players, tournament.matches, tournament.poolCount)
+      ? poolStandings(
+          tournament.players,
+          tournament.matches,
+          tournament.poolCount,
+          tournament.headToHead,
+        )
       : null
 
   // 加賽另出一張表 —— 唔會撈入小組排名表，嗰度照顯示並列。
