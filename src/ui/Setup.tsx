@@ -228,6 +228,45 @@ export function Setup({ id }: { id: string }) {
           />
         )}
 
+        {/*
+          純淘汰賽冇排名表，呢個設定對佢冇意義，唔好出。
+
+          鎖同賽制一樣行 alreadyStarted：打到一半改規則排名會大跳，
+          而且如果已經排咗加賽，改完可能原本並列嘅唔再並列 —— 嗰批加賽即刻白打。
+        */}
+        {tournament.mode !== 'knockout' && (
+          <div className="field">
+            <span className="field__label">同分點拆</span>
+            <div className="chips">
+              <button
+                className="chip chamfer-sm"
+                aria-pressed={!tournament.headToHead}
+                disabled={alreadyStarted}
+                onClick={() => update((t) => ({ ...t, headToHead: false }))}
+              >
+                當並列
+              </button>
+              <button
+                className="chip chamfer-sm"
+                aria-pressed={tournament.headToHead}
+                disabled={alreadyStarted}
+                onClick={() => update((t) => ({ ...t, headToHead: true }))}
+              >
+                睇對賽記錄
+              </button>
+            </div>
+            <p className="note">
+              <span>·</span>
+              <span>
+                排名次序：勝場 → 得分 → 分差 → 極限勝出次數。四樣都一樣嘅時候，
+                {tournament.headToHead
+                  ? '再睇佢哋之間邊個贏過邊個；仲拆唔開先當並列。'
+                  : '就當並列，出線位有並列就打加賽。'}
+              </span>
+            </p>
+          </div>
+        )}
+
         <div className="field">
           <label className="field__label" htmlFor="pname">
             有邊個打
