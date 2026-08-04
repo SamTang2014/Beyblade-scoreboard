@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  addTiebreak,
   buildCut,
   canStart,
   cutOptions,
@@ -7,6 +8,7 @@ import {
   hasBracket,
   hasStandings,
   nextPlayable,
+  standingsTies,
   startTournament,
 } from './tournament'
 import { bracketMatches, groupMatches } from './schedule'
@@ -316,5 +318,131 @@ describe('邊個模式有排名表', () => {
     expect(hasStandings('knockout')).toBe(false)
     expect(hasStandings('roundRobin')).toBe(true)
     expect(hasStandings('groupThenKnockout')).toBe(true)
+  })
+})
+
+/** 幫全部未打嘅加賽場次入分，贏家由 id 查表。 */
+function playTiebreaks(t: Tournament, winners: Record<string, string>): Tournament {
+  return {
+    ...t,
+    matches: t.matches.map((m) =>
+      m.stage === 'tiebreak' && m.rounds.length === 0 && winners[m.id] !== undefined
+        ? {
+            ...m,
+            rounds: Array.from({ length: 4 }, () => ({
+              winnerId: winners[m.id]!,
+              finish: 'spin' as const,
+            })),
+          }
+        : m,
+    ),
+  }
+}
+
+/** 排完賽程再逐場打完，贏家由場次 id 查表（循環階段 id = 雙方 id 排序後駁埋）。 */
+function playGroupStage(
+  mode: TournamentMode,
+  cutSize: number | null,
+  winners: Record<string, string>,
+): Tournament {
+  const base = tournament(mode, 4, cutSize)
+  const started = startTournament(base, rng)
+  return {
+    ...base,
+    players: started.players,
+    matches: playThrough(started.matches, (m) => winners[m.id]!),
+  }
+}
+
+describe('三個模式都搵到並列', () => {
+  /**
+   * p1 贏 p2、p1 贏 p3、p4 贏 p1、p2 贏 p3、p2 贏 p4、p3 贏 p4。
+   * → p1／p2 都係 2 勝 1 負、8 分、失 4 分；p3／p4 都係 1 勝 2 負、4 分、失 8 分。
+   *   即係兩段並列：第 1 位兩個、第 3 位兩個。
+   */
+  const TWO_TIES: Record<string, string> = {
+    p1__p2: 'p1',
+    p1__p3: 'p1',
+    p1__p4: 'p4',
+    p2__p3: 'p2',
+    p2__p4: 'p2',
+    p3__p4: 'p3',
+  }
+
+  it('純淘汰冇排名表，一律返吉', () => {
+    expect(standingsTies(tournament('knockout', 4))).toEqual([])
+  })
+
+  it('單循環未打完唔出聲', () => {
+    expect(standingsTies(tournament('roundRobin', 4))).toEqual([])
+  })
+
+  it('大循環未揀入籤人數就返吉', () => {
+    expect(standingsTies(tournament('groupThenKnockout', 4, null))).toEqual([])
+  })
+
+  it('單循環：兩段並列都搵到，冇出線線', () => {
+    const states = standingsTies(playGroupStage('roundRobin', null, TWO_TIES))
+    expect(states.map((s) => s.key)).toEqual([1, 3])
+    expect(states.every((s) => s.kind === 'rank')).toBe(true)
+    expect(states.every((s) => s.slots === null)).toBe(true)
+    expect(states.every((s) => !s.resolved)).toBe(true)
+  })
+
+  it('單循環：排到加賽 → 打完就拆掂 → 唔會再排', () => {
+    const t = playGroupStage('roundRobin', null, TWO_TIES)
+    const before = t.matches.length
+
+    const withTb = { ...t, matches: addTiebreak(t) }
+    expect(withTb.matches).toHaveLength(before + 2) // 兩段各兩個人 = 各 1 場
+    expect(standingsTies(withTb).every((s) => !s.resolved)).toBe(true)
+
+    const done = playTiebreaks(withTb, { tb1r1m1: 'p1', tb3r1m1: 'p3' })
+    expect(standingsTies(done).every((s) => s.resolved)).toBe(true)
+    expect(addTiebreak(done)).toEqual(done.matches) // 冇嘢要再排
+  })
+})
+
+describe('大循環出線線並列', () => {
+  /**
+   * p1 贏晒 3 場；p2／p3／p4 打成回圈。
+   * → p1 第 1，p2／p3／p4 三個並列第 2。頭 2 名入籤表 = 三個爭最後一個位。
+   */
+  const CUT_TIE: Record<string, string> = {
+    p1__p2: 'p1',
+    p1__p3: 'p1',
+    p1__p4: 'p1',
+    p2__p3: 'p2',
+    p3__p4: 'p3',
+    p2__p4: 'p4',
+  }
+
+  const atTheCut = () => playGroupStage('groupThenKnockout', 2, CUT_TIE)
+
+  it('三個爭最後一個入籤表位 → 砌唔到籤表', () => {
+    const t = atTheCut()
+    const [s] = standingsTies(t)
+    expect(s!.kind).toBe('rank')
+    expect(s!.key).toBe(2)
+    expect(s!.slots).toBe(1)
+    expect(s!.ids).toHaveLength(3)
+    // 呢度本來乜 check 都冇，會靜靜雞按個名攞頭 2 個。
+    expect(buildCut(t)).toEqual(t.matches)
+  })
+
+  it('打完加賽就砌到，而且種子跟加賽次序唔係跟個名', () => {
+    const t = atTheCut()
+    const withTb = { ...t, matches: addTiebreak(t) }
+    // 三個人 = 3 場：m1 = p2 對 p3、m2 = p2 對 p4、m3 = p3 對 p4。
+    // p4 贏晒兩場做加賽第一 —— 佢個名排最後，所以拎到佢就證明唔係靠個名。
+    const done = playTiebreaks(withTb, { tb2r1m1: 'p2', tb2r1m2: 'p4', tb2r1m3: 'p4' })
+    expect(standingsTies(done)[0]!.resolved).toBe(true)
+
+    const bracket = bracketMatches(buildCut(done))
+    expect(bracket.length).toBeGreaterThan(0)
+    const inBracket = new Set(
+      bracket.flatMap((m) => [m.aId, m.bId]).filter((x): x is string => x !== null),
+    )
+    expect(inBracket).toEqual(new Set(['p1', 'p4']))
   })
 })

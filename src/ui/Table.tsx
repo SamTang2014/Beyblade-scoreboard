@@ -2,7 +2,7 @@ import { useTournament, store } from '../storage/browserStore'
 import { computeStandings, completedCount, isTournamentComplete } from '../engine/standings'
 import { bracketChampion } from '../engine/bracket'
 import { poolLabel, poolStandings } from '../engine/pools'
-import { poolTies } from '../engine/tournament'
+import { standingsTies } from '../engine/tournament'
 import { TiebreakResult } from './components/TiebreakResult'
 import { downloadJson } from '../lib/download'
 import { TopBar } from './components/TopBar'
@@ -43,7 +43,7 @@ export function Table({ id }: { id: string }) {
       : null
 
   // 加賽另出一張表 —— 唔會撈入小組排名表，嗰度照顯示並列。
-  const ties = poolTies(tournament)
+  const ties = standingsTies(tournament)
 
   return (
     <>

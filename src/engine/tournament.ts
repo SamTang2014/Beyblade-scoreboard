@@ -2,12 +2,14 @@ import { bracketMatches, groupMatches, mergeSchedule } from './schedule'
 import { drawOrder, generateBracket, propagate } from './bracket'
 import {
   advanceOptions,
+  applyRankTiebreaks,
   assignLatecomers,
   buildPoolSchedule,
   drawPools,
-  nextTiebreak,
+  nextTiebreakFor,
   poolOptions,
   poolSeedOrder,
+  rankTieStates,
   tieStates,
   tiesPending,
 } from './pools'
@@ -135,8 +137,16 @@ function cutSeeds(t: Tournament): string[] {
     if (tiesPending(t.players, t.matches, t.poolCount, t.advancePerPool, t.headToHead)) return []
     return poolSeedOrder(t.players, t.matches, t.poolCount, t.advancePerPool, t.headToHead)
   }
+
   if (t.cutSize === null) return []
-  return computeStandings(t.players, groupMatches(t.matches), t.headToHead)
+
+  // 大循環一樣要擋。呢度本來乜 check 都冇 —— 第 4、5 名並列而頭 4 名入籤表，
+  // 就靜靜雞按個名攞頭 4 個。
+  const ties = rankTieStates(t.players, t.matches, t.headToHead, t.cutSize)
+  if (ties.some((s) => !s.resolved)) return []
+
+  const rows = computeStandings(t.players, groupMatches(t.matches), t.headToHead)
+  return applyRankTiebreaks(rows, ties)
     .slice(0, t.cutSize)
     .map((r) => r.playerId)
 }
@@ -158,20 +168,31 @@ export function hasStandings(mode: TournamentMode): boolean {
 }
 
 /**
- * 邊幾組喺出線線上面分唔開。
+ * 邊幾段並列要拆。介面唔使識分模式。
  *
- * 介面唔使識分模式：唔係小組賽、或者設定未齊，一律返吉。
+ * 單循環：任何一段並列都要拆，冇出線線 —— 張表本身就係最終結果。
+ * 大循環：淨係出線線嗰段。
+ * 小組賽：逐組出線線。
+ * 純淘汰：冇排名表，返吉。
  */
-export function poolTies(t: Tournament): TieState[] {
-  if (t.mode !== 'poolsThenKnockout') return []
-  if (t.poolCount === null || t.advancePerPool === null) return []
-  return tieStates(t.players, t.matches, t.poolCount, t.advancePerPool, t.headToHead)
+export function standingsTies(t: Tournament): TieState[] {
+  switch (t.mode) {
+    case 'knockout':
+      return []
+    case 'roundRobin':
+      return rankTieStates(t.players, t.matches, t.headToHead, null)
+    case 'groupThenKnockout':
+      return t.cutSize === null
+        ? []
+        : rankTieStates(t.players, t.matches, t.headToHead, t.cutSize)
+    case 'poolsThenKnockout':
+      if (t.poolCount === null || t.advancePerPool === null) return []
+      return tieStates(t.players, t.matches, t.poolCount, t.advancePerPool, t.headToHead)
+  }
 }
 
 /** 排下一次加賽，返返成個新場次表。冇嘢要排就原封不動。 */
 export function addTiebreak(t: Tournament): Match[] {
-  if (t.mode !== 'poolsThenKnockout') return t.matches
-  if (t.poolCount === null || t.advancePerPool === null) return t.matches
-  const more = nextTiebreak(t.players, t.matches, t.poolCount, t.advancePerPool, t.headToHead)
+  const more = nextTiebreakFor(standingsTies(t))
   return more.length === 0 ? t.matches : [...t.matches, ...more]
 }

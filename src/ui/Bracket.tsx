@@ -3,7 +3,7 @@ import { bracketMatches } from '../engine/schedule'
 import { bracketChampion, bracketRoundName, totalBracketRounds } from '../engine/bracket'
 import { matchScore, matchStatus, matchWinnerId } from '../engine/rules'
 import { Standings } from './components/Standings'
-import { addTiebreak, buildCut, groupStageComplete, hasBracket, poolTies } from '../engine/tournament'
+import { addTiebreak, buildCut, groupStageComplete, hasBracket, standingsTies } from '../engine/tournament'
 import { poolLabel, poolStandings } from '../engine/pools'
 import type { TieState } from '../engine/pools'
 import { TiebreakResult } from './components/TiebreakResult'
@@ -24,7 +24,7 @@ export function Bracket({ id }: { id: string }) {
   const bracket = bracketMatches(tournament.matches)
   const ready = hasBracket(tournament)
   // 出線線上面分唔開嘅組。有一組拆唔掂就砌唔到籤表。
-  const ties = poolTies(tournament).filter((s) => !s.resolved)
+  const ties = standingsTies(tournament).filter((s) => !s.resolved)
   const canBuild =
     (tournament.mode === 'groupThenKnockout' || tournament.mode === 'poolsThenKnockout') &&
     !ready &&

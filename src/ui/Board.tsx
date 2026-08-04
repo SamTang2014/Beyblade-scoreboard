@@ -5,7 +5,7 @@ import { matchScore, matchWinnerId } from '../engine/rules'
 import { computeStandings, isTournamentComplete } from '../engine/standings'
 import { bracketChampion } from '../engine/bracket'
 import { poolLabel, poolStandings } from '../engine/pools'
-import { poolTies } from '../engine/tournament'
+import { standingsTies } from '../engine/tournament'
 import { TiebreakResult } from './components/TiebreakResult'
 import { Standings } from './components/Standings'
 import { NotFound } from './Setup'
@@ -42,7 +42,7 @@ export function Board({ id }: { id: string }) {
         )
       : null
   const champText = complete ? championLine(tournament, rows) : ''
-  const ties = poolTies(tournament)
+  const ties = standingsTies(tournament)
 
   /**
    * 打緊嗰場係加賽嘅話，喺個大比分上面講明。
