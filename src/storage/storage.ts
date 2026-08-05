@@ -140,6 +140,7 @@ export function createStore({ kv, now = Date.now, newId = defaultNewId }: StoreO
         poolCount: null,
         advancePerPool: null,
         headToHead: false,
+        live: null,
         players: [],
         matches: [],
       }
@@ -306,6 +307,8 @@ export function parseTournament(v: unknown): Tournament {
     advancePerPool,
     // 舊檔冇呢個 field，一律當閂。唔係 true 嘅垃圾值都當閂。
     headToHead: v.headToHead === true,
+    // 舊檔冇呢個 field，或者唔齊 field，一律當「玩下」場 —— 半個設定連唔到人。
+    live: parseLive(v.live),
     players: grouped,
     matches,
   }
@@ -331,6 +334,25 @@ function optionalStr(v: unknown): string | null {
 /** 1 起計嘅正整數，唔係就當冇。舊檔、爛值都行呢條路。 */
 function positiveInt(v: unknown): number | null {
   return typeof v === 'number' && Number.isInteger(v) && v >= 1 ? v : null
+}
+
+/**
+ * `scriptId` 同 `edit` 要有；`view` 可以係吉。
+ *
+ * 點解 `view` 唔強制：入分 link 嗰部機由條 link 砌返個 `live`，而條 link
+ * 淨係帶住 edit token。段 script 會額外派返 view token，但唔應該為咗
+ * 呢一個 field 缺失就當成「冇分享」—— 咁樣佢會靜靜雞連唔到，
+ * 入分入到爽但一分都推唔上去。
+ *
+ * `view` 吉嘅後果淨係「派唔到觀眾 link」，唔影響入分。
+ */
+function parseLive(v: unknown): Tournament['live'] {
+  if (!isObject(v)) return null
+  const { scriptId, edit, view } = v
+  if (typeof scriptId !== 'string' || scriptId === '') return null
+  if (typeof edit !== 'string' || edit === '') return null
+  if (typeof view !== 'string') return null
+  return { scriptId, edit, view }
 }
 
 /** 選手 id，或者 null（淘汰賽對手未定）。填咗就一定要喺名單度。 */

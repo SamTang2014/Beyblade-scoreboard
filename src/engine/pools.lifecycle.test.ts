@@ -35,6 +35,7 @@ function tour(over: Partial<Tournament> = {}): Tournament {
     poolCount: 3,
     advancePerPool: 2,
     headToHead: false,
+    live: null,
     players: players(12),
     matches: [],
     ...over,
