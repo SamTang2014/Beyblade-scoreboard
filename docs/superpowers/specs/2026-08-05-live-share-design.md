@@ -318,9 +318,13 @@ live: { scriptId: string; edit: string; view: string } | null
 - JSON 分段／重組：39 KB、41 KB、120 KB 都要啱，段數對得返
 - 離線：`fetch` 掟錯 → 排隊唔會冇、`update` 照樣即刻返
 
-**測唔到（要人手）**
+**段 `Code.gs`**
 
-段 `Code.gs` 跑喺 Google 嘅 runtime，vitest 掂唔到。做兩樣補救：
+原本以為冇得測 —— 唔啱。佢用到嘅 Google 嘢得五個，全部 stub 得，所以
+`src/live/appsScript.test.ts` 讀返個真檔案連 stub 一齊行真嘅 `doGet` / `doPost`
+（27 個測試）。
+
+真係測唔到嘅淨係 **deploy 同權限**：
 
 1. 一份人手測試清單（deploy 一次行一次）
 2. 一個 contract test：`LIVE_SCRIPT_ID=… npm run test:live` 打真嘅 deployment 行一轉 init → claim → push → get → 第二部機 claim 俾拒絕 → force claim → view token 寫入俾拒絕。冇設個 env var 就跳過。

@@ -222,7 +222,20 @@ git commit -m "分享 link 嘅 payload 編碼解碼，同埋 script 網址點拆
 
 ### Task 2: `apps-script/Code.gs` —— 段 script
 
-呢個 task 冇自動測試（跑喺 Google 個 runtime，vitest 掂唔到）。所以段 code 要**薄同笨** —— 一睇就知啱唔啱。
+**更正：呢個 task 有自動測試。**
+
+原本份 spec 同 plan 寫住段 script 冇得測 —— 唔啱。佢用到嘅 Google 嘢得五個
+（`SpreadsheetApp`、`CacheService`、`LockService`、`ContentService`、`Date`），
+全部 stub 得。所以做嘅時候順手加埋 `src/live/appsScript.test.ts`：讀返
+`apps-script/Code.gs` 個真檔案（用 Vite 嘅 `?raw`，**唔好抄一份** —— 抄咗就會分叉，
+測住個舊版本仲要一路綠），塞入 `new Function` 連 stub 一齊行真嘅 `doGet` / `doPost`。
+
+27 個測試，覆蓋 init／換場／token 判角色／剝走 live／入分位／過期／續期／版本／
+分段／由長變短／emoji 切喺分段位。
+
+真係測唔到嘅淨係 **deploy 同權限**（Execute as、Who has access）—— 嗰啲留返
+`apps-script/README.md` 嗰份人手清單。段 code 仍然要寫得薄同笨，但唔再係
+「冇得驗，唯有小心啲」。
 
 **Files:**
 - Create: `apps-script/Code.gs`
