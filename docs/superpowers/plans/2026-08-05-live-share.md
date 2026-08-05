@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 主辦喺自己 Google Drive 開一張 private sheet 做 database，派兩條 link 出去 —— 一條可以入分、一條淨係睇，實時跳。
+**Goal:** 開賽嗰陣揀「認真」場，畀一張自己嘅 private Google Sheet 做 database，派兩條 link 出去 —— 一條可以入分、一條淨係睇，實時跳。揀「玩下」就乜都唔使畀，介面上完全見唔到呢個功能。
 
 **Architecture:** 一段 Apps Script deploy 成 Web App，以主辦身份執行，所以掂得到嗰張從未 share 過嘅 sheet。客戶端分四層純 module（payload 編碼、JSON 分段、傳輸、佔位狀態機），全部餵得假嘢入去測試；React 層淨係接線同計時器。一場賽事只有一個「入分位」，坐緊位嗰部機先寫得到嘢 —— 所以冇衝突要合併。
 
@@ -20,6 +20,7 @@
 - **到期時間一律用客戶端自己個鐘算**（`Date.now() + LEASE_MS`），段 script 返嘅 `until` 淨係做參考。撈埋兩個鐘用，部機個鐘快咗就會一路鎖住個介面但心跳其實成功緊。
 - 主辦（本機有 `live` 設定嗰部）**隨時**收得返個位；入分 link 要等過期。
 - 舊檔冇 `live` 一律當 `null`（同 `headToHead` 一樣嘅處理）。
+- **分享係「認真」場先有。** 唔做獨立 tab、唔做獨立頁 —— 收埋落開賽設定入面一個分支，揀「玩下」就完全見唔到。`live === null` 就係「玩下」，冇另一個 field。
 - **推上去嗰份賽事資料，`live` 一定要係 `null`** —— `Tournament.live` 入面有兩個 token，原封不動推上去就會經 `doGet` 交俾觀眾，任何人讀一讀 JSON 就攞到入分權。
 - 每個 task 做完 `npm test` 同 `npm run typecheck` 都要綠先可以 commit；掂到 UI 嘅再行 `npm run build`。
 
@@ -32,7 +33,7 @@
 | `src/live/remote.ts` | 同段 script 講嘢。純傳輸，冇 state、冇 timer、冇 React |
 | `src/live/seat.ts` | 佔位狀態機。純 reducer，冇 timer —— 所以測得到 |
 | `src/live/sync.ts` | React hook：接線 timer、推送隊列、poll |
-| `src/ui/Share.tsx` | 設定頁 `#/t/<id>/share` |
+| `src/ui/ShareSetup.tsx` | 「認真」場嗰段設定，由 `Setup.tsx` 用。**唔係獨立一頁** |
 | `src/ui/Live.tsx` | link 入口 `#/live/<payload>`，拉資料再分流 |
 
 **點解分咁多個細 module：** 段 `Code.gs` 冇得寫自動測試（跑喺 Google 個 runtime）。所以凡係邏輯都要推落客戶端嘅 TS 度，令段 script 薄到「一睇就知啱唔啱」。`seat.ts` 特登唔掂 timer，就係為咗全部規則都測得到。
@@ -1246,19 +1247,28 @@ git commit -m "傳輸層：同段 script 講嘢，POST 用 text/plain 避開 COR
 
 ---
 
-### Task 5: 分享設定頁
+### Task 5: 「認真」場設定 —— 收埋落開賽設定入面
 
 **Files:**
-- Create: `src/ui/Share.tsx`
-- Modify: `src/lib/router.ts`（加 `share` route）
-- Modify: `src/ui/App.tsx`（接線）
-- Modify: `src/ui/components/TopBar.tsx`（加「分享」tab）
+- Create: `src/ui/ShareSetup.tsx`（**一個 component，唔係一頁**）
+- Modify: `src/ui/Setup.tsx`（加「規模」選擇 + 揀咗認真先展開）
+- Modify: `src/lib/router.ts`（加 `live` route —— **唔加 `share`**）
+- Modify: `src/ui/App.tsx`（接 `live`）
 - Modify: `src/ui/styles/app.css`
-- Test: `src/lib/router.test.ts`（如果冇就喺 `payload.test.ts` 隔籬新開）
+- Test: `src/lib/router.test.ts`（新檔）
+
+> **⚠ 呢個 task 唔開新 tab、唔開新頁。**
+>
+> 分享唔係一個獨立功能，係「認真場」嘅一部分。六個人打場周末聚會，成套
+> Google Sheet 設定同佢完全無關 —— 俾佢見到一個永遠撳唔落去嘅 tab，
+> 淨係多一樣嘢要諗。所以收埋落開賽設定，揀「玩下」就當呢個功能唔存在。
+>
+> **`live === null` 就係「玩下」**，唔會另外加一個 field。冇張 sheet 就冇地方
+> 擺資料，冇地方擺就分享唔到 —— 個選擇同個要求本身就係同一件事。
 
 **Interfaces:**
 - Consumes: Task 1 嘅 `encodePayload` / `parseScriptId`；Task 3 嘅 `newToken` / `savedSheet` / `rememberSheet`；Task 4 嘅 `createClient`
-- Produces: route `{ name: 'share'; id: string }`
+- Produces: route `{ name: 'live'; payload: string }`；`<ShareSetup tournament update />`
 
 - [ ] **Step 1: 加 route，寫住會 fail 嘅測試**
 
@@ -1268,11 +1278,7 @@ git commit -m "傳輸層：同段 script 講嘢，POST 用 text/plain 避開 COR
 import { describe, expect, it } from 'vitest'
 import { parseHash } from './router'
 
-describe('分享頁同直播 link', () => {
-  it('分享設定頁', () => {
-    expect(parseHash('#/t/abc/share')).toEqual({ name: 'share', id: 'abc' })
-  })
-
+describe('直播 link', () => {
   it('直播 link', () => {
     expect(parseHash('#/live/eyJzIjoiUzEifQ')).toEqual({ name: 'live', payload: 'eyJzIjoiUzEifQ' })
   })
@@ -1284,6 +1290,10 @@ describe('分享頁同直播 link', () => {
 
   it('唔認得嘅 sub 照去入分版（同以前一樣）', () => {
     expect(parseHash('#/t/abc/wat')).toEqual({ name: 'console', id: 'abc', matchId: null })
+  })
+
+  it('冇 share 呢一頁 —— 分享設定喺開賽設定入面', () => {
+    expect(parseHash('#/t/abc/share')).toEqual({ name: 'console', id: 'abc', matchId: null })
   })
 })
 ```
@@ -1301,13 +1311,13 @@ export type Route =
   | { name: 'matrix'; id: string }
   | { name: 'bracket'; id: string }
   | { name: 'board'; id: string }
-  | { name: 'share'; id: string }
   /** 由分享 link 入嚟。payload 未解碼 —— 解碼係 Live.tsx 嘅事。 */
   | { name: 'live'; payload: string }
 
+// 冇 `share` —— 分享設定收埋咗喺開賽設定（`setup`）入面，唔係獨立一頁。
 const SUB: Record<
   string,
-  'setup' | 'schedule' | 'table' | 'matrix' | 'bracket' | 'board' | 'share'
+  'setup' | 'schedule' | 'table' | 'matrix' | 'bracket' | 'board'
 > = {
   setup: 'setup',
   schedule: 'schedule',
@@ -1315,7 +1325,6 @@ const SUB: Record<
   matrix: 'matrix',
   bracket: 'bracket',
   board: 'board',
-  share: 'share',
 }
 
 export function parseHash(hash: string): Route {
@@ -1347,16 +1356,20 @@ Expected: PASS
 
 - [ ] **Step 4: 寫 `Share.tsx`**
 
-`src/ui/Share.tsx`：
+`src/ui/ShareSetup.tsx`：
+
+**佢係一段 component，唔係一頁。** 冇 `TopBar`、冇 `.page` wrapper、冇自己去
+`useTournament` —— 由 `Setup.tsx` 傳 `tournament` 同 `update` 入嚟。咁樣先入得
+落開賽設定嗰個表單度，唔會變成另一個「地方」。
 
 ```tsx
 import { useState } from 'react'
-import { useTournament } from '../storage/browserStore'
 import { createClient } from '../live/remote'
 import { encodePayload, parseScriptId, scriptUrl } from '../live/payload'
 import { newToken, rememberSheet, savedSheet } from '../live/device'
-import { TopBar } from './components/TopBar'
-import { NotFound } from './Setup'
+import { store } from '../storage/browserStore'
+import { parseTournament } from '../storage/storage'
+import type { Tournament } from '../engine/types'
 
 /** 條完整 link，可以直接 send 俾人。 */
 function linkFor(scriptId: string, token: string): string {
@@ -1364,16 +1377,19 @@ function linkFor(scriptId: string, token: string): string {
   return `${base}#/live/${encodePayload({ s: scriptId, k: token })}`
 }
 
-export function Share({ id }: { id: string }) {
-  const { tournament, update } = useTournament(id)
+export function ShareSetup({
+  tournament,
+  update,
+}: {
+  tournament: Tournament
+  update: (change: (t: Tournament) => Tournament) => void
+}) {
   const [url, setUrl] = useState(() => {
     const saved = savedSheet()
     return saved === null ? '' : scriptUrl(saved.scriptId)
   })
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
-
-  if (tournament === null) return <NotFound />
 
   const live = tournament.live
 
@@ -1398,7 +1414,7 @@ export function Share({ id }: { id: string }) {
     const prev = savedSheet()
     const reusing = prev !== null && prev.scriptId === scriptId
 
-    if (reusing && tournament!.live === null) {
+    if (reusing && tournament.live === null) {
       const yes = confirm(
         '呢張 sheet 而家擺緊第二場賽事。換做呢場嘅話，舊嗰兩條 link 即刻會失效。要換？',
       )
@@ -1409,10 +1425,10 @@ export function Share({ id }: { id: string }) {
     setErr(null)
     const edit = newToken('edit')
     const view = newToken('view')
-    const auth = tournament!.live?.edit ?? prev?.edit ?? edit
+    const auth = tournament.live?.edit ?? prev?.edit ?? edit
     // ⚠ 推之前一定要剝走 live —— 入面有兩個 token，推咗上去就會經 doGet
     // 交俾觀眾，任何人讀一讀 JSON 就攞到入分權。
-    const r = await createClient(scriptId, auth).init(edit, view, { ...tournament!, live: null })
+    const r = await createClient(scriptId, auth).init(edit, view, { ...tournament, live: null })
     setBusy(false)
 
     if (!r.ok) {
@@ -1430,20 +1446,13 @@ export function Share({ id }: { id: string }) {
     update((t) => ({ ...t, live: { scriptId, edit, view } }))
   }
 
-  return (
+  return live === null ? (
     <>
-      <TopBar id={id} name={tournament.name || '未命名賽事'} current="share" mode={tournament.mode} />
-      <div className="page stack">
-        {live === null ? (
-          <SetupSteps url={url} onUrl={setUrl} busy={busy} err={err} onStart={start} />
-        ) : (
-          <Links
-            edit={linkFor(live.scriptId, live.edit)}
-            view={linkFor(live.scriptId, live.view)}
-          />
-        )}
-      </div>
+      <SetupSteps url={url} onUrl={setUrl} busy={busy} err={err} onStart={start} />
+      <Recover />
     </>
+  ) : (
+    <Links edit={linkFor(live.scriptId, live.edit)} view={linkFor(live.scriptId, live.view)} />
   )
 }
 
@@ -1556,22 +1565,88 @@ function LinkRow({ label, hint, url }: { label: string; hint: string; url: strin
 }
 ```
 
-- [ ] **Step 5: 接線 App、TopBar、CSS**
+- [ ] **Step 5: `Setup.tsx` 加「規模」，揀咗認真先展開**
 
-`src/ui/App.tsx` 頂部 `import { Share } from './Share'`，跟住喺 `board` 嗰行後面加：
+`src/ui/Setup.tsx`，喺「同分點拆」嗰個 field 後面、「有邊個打」前面插入：
 
 ```tsx
-      {route.name === 'share' && <Share key={route.id} id={route.id} />}
+        {/*
+          賽事規模。
+
+          「認真」嘅定義就係「你要畀一張 Google Sheet」—— 唔係我哋加難度，
+          係個結構本身擺喺度：冇張 sheet 就冇地方擺資料，冇地方擺就分享唔到。
+          所以個選擇同個要求係同一件事，唔使分兩步問。
+
+          `live === null` 就係「玩下」。唔會另外加 field —— 多一個 field 就要
+          處理「揀咗認真但未貼網址」嗰種半吊子狀態，冇必要。
+        */}
+        <div className="field">
+          <span className="field__label">規模</span>
+          <div className="chips">
+            <button
+              className="chip chamfer-sm"
+              aria-pressed={tournament.live === null && !serious}
+              onClick={() => {
+                if (tournament.live === null) {
+                  setSerious(false)
+                  return
+                }
+                if (
+                  confirm('轉返玩下場，兩條分享 link 即刻會死。張 sheet 上面啲資料唔會刪。要轉？')
+                ) {
+                  update((t) => ({ ...t, live: null }))
+                  setSerious(false)
+                }
+              }}
+            >
+              玩下
+            </button>
+            <button
+              className="chip chamfer-sm"
+              aria-pressed={tournament.live !== null || serious}
+              onClick={() => setSerious(true)}
+            >
+              認真
+            </button>
+          </div>
+          <p className="note">
+            <span>·</span>
+            <span>
+              {tournament.live !== null || serious
+                ? '認真場要一張你自己嘅 Google Sheet 做記錄，開得到直播 —— 一條 link 俾人幫手入分，一條俾人睇住。'
+                : '玩下場乜都唔使畀，資料淨係喺你部機。'}
+            </span>
+          </p>
+        </div>
+
+        {(tournament.live !== null || serious) && (
+          <ShareSetup tournament={tournament} update={update} />
+        )}
 ```
 
-（`live` route 喺 Task 6 先接。）
+`Setup.tsx` 頂部加 `import { ShareSetup } from './ShareSetup'`，同埋喺
+`alreadyStarted` 隔籬加一個 state：
 
-`src/ui/components/TopBar.tsx`：`TabName` 嗰個 `Extract` 加 `'share'`，`TABS` 最尾加 `{ name: 'share', label: '分享' }`，`tabsFor` 入面純淘汰嗰行改成 `return tab.name === 'console' || tab.name === 'board' || tab.name === 'share'`（純淘汰都分享得）。
+```tsx
+  /*
+    「撳咗認真但未貼網址」嗰個中間狀態。
+
+    唔存落 Tournament —— 存咗就要處理「認真但冇 sheet」呢種半吊子賽事：
+    邊度要當佢認真？邊度唔使？多一個 field 就多一堆分支。開咗直播
+    （`live !== null`）先係真認真，之後 reload 都認得返。
+  */
+  const [serious, setSerious] = useState(false)
+```
+
+**點解「玩下／認真」唔跟賽制一樣鎖住 `alreadyStarted`：** 打到一半先想開直播係
+好正常嘅事（人多咗、有人想睇）。開得到 —— 成場賽事連已經入咗嘅分會一次過推上去。
+
+- [ ] **Step 6: CSS**
 
 `src/ui/styles/app.css` 最尾加：
 
 ```css
-/* 分享設定頁嘅逐步指引。 */
+/* 「認真」場嘅逐步指引。 */
 .steps {
   margin: var(--sp-3) 0 0;
   padding-left: 1.4em;
@@ -1589,6 +1664,13 @@ function LinkRow({ label, hint, url }: { label: string; hint: string; url: strin
   background: var(--floor-sunk);
   font-size: 0.9em;
 }
+
+.recover summary {
+  cursor: pointer;
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+  font-variation-settings: 'wdth' 90, 'wght' 650;
+}
 ```
 
 - [ ] **Step 6: 行測試同 build**
@@ -1599,8 +1681,8 @@ Expected: PASS
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/ui/Share.tsx src/lib/router.ts src/lib/router.test.ts src/ui/App.tsx src/ui/components/TopBar.tsx src/ui/styles/app.css
-git commit -m "分享設定頁：貼段 script 網址、開直播、出兩條 link"
+git add src/ui/ShareSetup.tsx src/ui/Setup.tsx src/lib/router.ts src/lib/router.test.ts src/ui/styles/app.css
+git commit -m "「認真」場：開賽設定揀規模，揀咗先要畀張 sheet，出兩條 link"
 ```
 
 ---
@@ -3180,7 +3262,7 @@ git commit -m "接線：每次改動都推上去、入分 link 接得到手、�
 ### Task 10: 救援路
 
 **Files:**
-- Modify: `src/ui/Share.tsx`
+- Modify: `src/ui/ShareSetup.tsx`
 - Modify: `src/ui/styles/app.css`
 
 **Interfaces:**
@@ -3200,7 +3282,7 @@ git commit -m "接線：每次改動都推上去、入分 link 接得到手、�
 
 - [ ] **Step 1: `Share.tsx` 加救援入口**
 
-`src/ui/Share.tsx` 加一個獨立 component（唔好塞落 `SetupSteps` —— 佢冇呢啲 state）：
+`src/ui/ShareSetup.tsx` 加一個獨立 component（唔好塞落 `SetupSteps` —— 佢冇呢啲 state）：
 
 ```tsx
 /**
@@ -3314,9 +3396,9 @@ function Recover() {
 }
 ```
 
-跟住喺 `Share` 個 return 入面、`{live === null ? … : …}` 後面加 `{live === null && <Recover />}` —— 已經開咗直播就唔使出呢個。
+（Step 5 個 return 已經有 `<Recover />`，呢度只係補返佢個實作。）
 
-`Share.tsx` 頂部要加 `import { store } from '../storage/browserStore'`、`import { parseTournament } from '../storage/storage'`、同埋 `import type { Tournament } from '../engine/types'`。
+`ShareSetup.tsx` 頂部要加 `import { store } from '../storage/browserStore'`、`import { parseTournament } from '../storage/storage'`、同埋 `import type { Tournament } from '../engine/types'`。
 
 CSS：
 
@@ -3337,7 +3419,7 @@ Expected: PASS
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/ui/Share.tsx src/ui/styles/app.css
+git add src/ui/ShareSetup.tsx src/ui/styles/app.css
 git commit -m "救援路：部機冇咗、只要張 sheet 仲喺，就接得返場賽事"
 ```
 
@@ -3554,7 +3636,9 @@ git commit -m "Contract test 打真 deployment；README 講埋即時分享"
 
 - [ ] `npm test && npm run build` 全綠
 - [ ] `npm test` 冇打真 server（冇設 `LIVE_SCRIPT_ID` 就 skip）
-- [ ] **冇開直播嘅賽事一切照舊** —— 單機入分、匯出匯入、四個賽制全部冇變
+- [ ] **「玩下」場一切照舊** —— 單機入分、匯出匯入、四個賽制全部冇變，而且介面上完全見唔到分享（冇新 tab、冇多咗一版嘢）
+- [ ] 打到一半由「玩下」轉「認真」→ 已經入咗嘅分一次過推得上去
+- [ ] 由「認真」轉返「玩下」→ 會問確認，轉完兩條 link 死咗
 - [ ] 舊備份（冇 `live` field）匯入唔會報錯
 - [ ] 觀眾 link：實時跳、切走再切返即刻追上、斷網有提示、亂改 token 見到「條 link 唔啱」
 - [ ] 入分 link：搶唔到位、等過期接到手、主辦收得返

@@ -4,7 +4,9 @@
 
 ## 一句話
 
-主辦喺自己 Google Drive 開一張**private sheet**，綁一段 Apps Script deploy 成 Web App；個 app 靠嗰條網址讀寫。主辦派兩條 link 出去：一條可以入分，一條淨係睇，實時跳。
+開賽嗰陣揀「認真」場，畀一張自己嘅 **private Google Sheet**（綁住一段 Apps Script
+deploy 成 Web App）；個 app 靠嗰條網址讀寫，派兩條 link 出去 —— 一條可以入分，
+一條淨係睇，實時跳。揀「玩下」就乜都唔使畀，成個功能當唔存在。
 
 ## 點解係呢個方案
 
@@ -36,6 +38,8 @@
 張 sheet 由頭到尾**冇 share 過俾任何人**。外面淨係打得到段 script，而段 script 睇 token 決定俾唔俾你做嘢。
 
 ## 兩條 link
+
+**淨係「認真」場先有。** 玩下場乜都唔會出（見下面「賽事規模」）。
 
 ```
 …/Beyblade-scoreboard/#/live/<base64url({"s":<scriptId>,"k":<token>})>
@@ -252,16 +256,54 @@ live: { scriptId: string; edit: string; view: string } | null
 
 部機自己個 id（`who`）都係全域 key，第一次用嘅時候 generate，之後唔變。唔擺落 `Tournament` 入面 —— 佢屬於部機，唔屬於場賽事。
 
-## 設定流程（新頁 `#/t/<id>/share`）
+## 賽事規模：玩下 定 認真
 
-1. 逐步指引：開一張新 sheet → Extensions → Apps Script → 貼段 code → Deploy → Web app → Execute as **Me** → Who has access **Anyone** → copy 條網址
-2. 貼條網址入去（如果之前貼過會自動填返）
+分享唔係一個獨立功能，係**「認真場」嘅一部分**。開賽設定度多一個選擇：
+
+```
+規模
+[ 玩下 ]  [ 認真 ]
+```
+
+| | 玩下（default） | 認真 |
+|---|---|---|
+| 要畀啲乜 | 冇 | 一張 Google Sheet 條 script 網址 |
+| 資料喺邊 | 淨係你部機 | 你部機 + 你自己張 sheet |
+| 分享 link | 冇 | 兩條（入分、觀眾）|
+| 介面多咗啲乜 | **一樣都冇** | 開賽設定入面多一段設定 |
+
+**點解唔做一個永遠喺度嘅「分享」tab：** 六個人打場周末聚會，成套 Google Sheet
+設定同佢完全無關。俾佢見到一個永遠撳唔落去嘅 tab，只係多一樣嘢要諗。
+「玩下」揀咗就當呢個功能唔存在。
+
+**「認真」嘅定義就係「你要畀一張 sheet」。** 呢個唔係我哋加難度，係個結構本身
+擺喺度 —— 冇張 sheet 就冇地方擺資料，冇地方擺就分享唔到。所以個選擇同個要求
+係同一件事，唔使分兩步問。
+
+### 設定流程（喺開賽設定頁，`#/t/<id>/setup`）
+
+揀咗「認真」先至展開：
+
+1. 逐步指引：開一張新 sheet（**唔好 share 俾任何人**）→ Extensions → Apps Script
+   → 貼段 code → Deploy → Web app → Execute as **Me** → Who has access **Anyone**
+   → copy 條網址
+2. 貼條網址入去（之前貼過會自動填返）
 3. 撳「開始直播」→ app generate 兩個 token → `init` → 存 `live`
 4. 出兩條 link，各有 copy 掣
 
 段 `Code.gs` 放喺 repo `apps-script/Code.gs`，設定頁有個「複製段 code」掣。
 
-同一頁下面有個「**用返舊嘅 sheet**」：貼 script 網址 + edit token → 拉返成場賽事。主辦部機冇咗嘅時候行呢條 —— 兩個 token 就寫喺張 sheet B1／B2，佢開自己個 Drive 就抄得返。
+同一段下面有個「**用返舊嘅 sheet**」：貼 script 網址 + edit token → 拉返成場賽事。
+主辦部機冇咗嘅時候行呢條 —— 兩個 token 就寫喺張 sheet B1／B2，佢開自己個 Drive
+就抄得返。
+
+### 由玩下轉認真
+
+隨時轉得。已經打咗一半嘅賽事撳「認真」，一樣可以貼網址開直播 —— 成場賽事
+（連已經入咗嘅分）會一次過推上去。
+
+**由認真轉返玩下**要確認一次：兩條 link 即刻死，張 sheet 上面嗰份資料唔會刪
+（佢喺你自己個 Drive，你想點就點）。
 
 ## 測試
 
@@ -302,6 +344,8 @@ live: { scriptId: string; edit: string; view: string } | null
 | 觀眾要 Google 登入 | **唔做** |
 | QR code | **唔做**（要多個 library） |
 | 一張 sheet 擺多場賽事 | **唔做**。一張 sheet 一場，換場就 re-init（要確認，舊 link 會死） |
+| 「認真」模式包埋分享以外嘅嘢（強制加賽、鎖住已入嘅分…） | **唔做**。認真 = 有張 sheet、開到直播，就係咁多 |
+| 獨立一個「分享」tab | **唔做**。收埋落開賽設定，玩下場完全見唔到 |
 | 兩個人同時入分（自動合併衝突） | **唔做**。一個入分位，輪流坐 |
 | 入分 link 都收得返個位 | **唔做**。主辦先收得返 —— 張 sheet 係佢嘅 |
 | 個位換咗人嗰陣通知另一部機 | **唔做**。佢下次心跳或者推嘢嗰陣自然發現 |
