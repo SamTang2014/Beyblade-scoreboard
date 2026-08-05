@@ -74,6 +74,10 @@ token 一齊交俾 view token 嗰個人 —— 任何觀眾讀一讀 JSON 就攞
 
 所以：**推之前一定要 `{...t, live: null}`**。
 
+**而且段 script 自己都要再剝一次。** 淨係靠客戶端嘅話，一個寫錯咗（或者惡意）
+嘅 edit-token 客戶端就可以把兩個 token 一次過發佈俾全部觀眾 —— 唯一守住呢個
+性質嘅嘢喺佢部機度。段 script 係所有寫入嘅共同樽頸，喺嗰度多守一重先真係守得住。
+
 咁樣入分 link 嗰部機點知自己嘅 `live`？由條 link 本身砌返：`scriptId` 同 `edit`
 喺 payload 入面。`view` 就靠 GET 嗰陣段 script 額外派返 —— **淨係派俾 edit token**。
 

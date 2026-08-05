@@ -303,6 +303,20 @@ function readData_(sh, chunks) {
   return out
 }
 
+/**
+ * 剝走 `live` —— 入面有兩個 token。
+ *
+ * 客戶端推之前**應該**已經剝走咗，呢度係第二重保險。點解要兩重：剝走呢件事
+ * 淨係喺客戶端做嘅話，一個寫錯咗嘅（或者惡意嘅）edit-token 客戶端，就可以
+ * 把兩個 token 一次過發佈俾全部觀眾 —— 而唯一守住呢個性質嘅嘢喺佢部機度。
+ *
+ * 段 script 係唯一一個所有寫入都要行經嘅樽頸，所以呢條線放喺呢度先真係守得住。
+ */
+function stripLive_(t) {
+  if (t !== null && typeof t === 'object') t.live = null
+  return t
+}
+
 function writeData_(sh, json) {
   // 一格一格咁切。CJK 字冇事（每個一格）；emoji 係兩格，理論上切得開，
   // 但 `a.slice(0,n) + a.slice(n)` 接返一定原樣，所以只要 Google 唔改動
@@ -459,7 +473,7 @@ function init_(sh, m, body) {
   // 版本要繼續行前，唔可以 reset 做 1 —— 換場之後，一個 `since` 啱啱係 1 嘅
   // 觀眾會以為「冇變」，望住舊畫面唔郁。
   var v = m.version + 1
-  writeData_(sh, JSON.stringify(body.t))
+  writeData_(sh, JSON.stringify(stripLive_(body.t)))
   sh.getRange('B1:B5').setValues([[edit], [view], [v], [''], [0]])
   putCache_({ edit: edit, view: view, version: v })
   return reply_({ ok: true, v: v })
@@ -504,7 +518,7 @@ function push_(sh, m, body) {
   }
 
   var v = m.version + 1
-  writeData_(sh, JSON.stringify(body.t))
+  writeData_(sh, JSON.stringify(stripLive_(body.t)))
   // 推嘢順手續期 —— 入分入得密就唔使等心跳。
   sh.getRange('B3:B5').setValues([[v], [who], [now + LEASE_MS]])
   putCache_({ edit: m.edit, view: m.view, version: v })
@@ -542,6 +556,7 @@ Who has access 揀錯，觀眾撳條 link 會俾人叫佢登入。
 - [ ] 第一次 init：張新 sheet 自動生出 `data` tab，A 欄有標籤，B1／B2 有 token，B3 = 1
 - [ ] 觀眾 link 開到，睇到分
 - [ ] 觀眾 link 改條 URL 亂試（`k` 改成 edit token 以外嘅嘢）→ `bad-token`
+- [ ] 用 edit token 特登推一份帶住 `live` 嘅資料上去 → 張 sheet 存落去嗰份 `live` 應該係 `null`（段 script 自己剝走）
 - [ ] 用 view token POST → `read-only`
 - [ ] 主辦入分 → 觀眾嗰邊 3 秒內見到
 - [ ] 入分 link 開到，見到「入分位喺第二部機」，入分掣灰咗
@@ -2414,6 +2429,8 @@ export function useLiveSync(
   const [offline, setOffline] = useState(false)
   /** 條 link 死咗（多數係張 sheet 換咗第二場賽事）。 */
   const [dead, setDead] = useState(false)
+  const deadRef = useRef(dead)
+  deadRef.current = dead
 
   /*
     啲 timer 讀 ref 唔讀 state。
@@ -2486,6 +2503,11 @@ export function useLiveSync(
     void claim(false)
   }, [client, claim])
 
+  // 換咗第二張 sheet（或者第二場賽事）就唔應該仲寫住「link 死咗」。
+  useEffect(() => {
+    setDead(false)
+  }, [client])
+
   /** 心跳 + 補推。**唔理 document.hidden**。 */
   useEffect(() => {
     if (client === null || queue === null) return
@@ -2515,9 +2537,12 @@ export function useLiveSync(
   */
   useEffect(() => {
     if (client === null) return
-    let dead = false
+    // ⚠ 唔好叫 `dead` —— 上面有個 `dead` state（條 link 死咗），撞名會令
+    // 呢度睇落好似有 gate 但其實冇，將來好易改錯。
+    let stopped = false
     const tick = async (): Promise<void> => {
-      if (dead || document.hidden) return
+      if (stopped || document.hidden) return
+      if (deadRef.current) return // 條 link 死咗就唔好再打
       if (canEdit(seatRef.current, Date.now())) return // 我坐緊，唔使拉
       /*
         本機仲有嘢未推就唔好蓋 —— 蓋咗就真係冇咗（隊列淨係喺記憶體，
@@ -2526,8 +2551,9 @@ export function useLiveSync(
       if (queue !== null && queue.pending() > 0) return
 
       const r = await client.get(version.current)
-      if (dead) return
+      if (stopped) return
       setOffline(!r.ok && r.err === 'network')
+      if (!r.ok && r.err === 'bad-token') setDead(true)
       if (r.ok) {
         version.current = r.v
         if (r.t !== null) adopt(r.t)
@@ -2535,7 +2561,7 @@ export function useLiveSync(
     }
     const timer = window.setInterval(() => void tick(), POLL_MS)
     return () => {
-      dead = true
+      stopped = true
       clearInterval(timer)
     }
   }, [client, adopt, queue])
@@ -2810,7 +2836,7 @@ export function Console({ id, matchId = null }: { id: string; matchId?: string |
 import { useEffect, useMemo, useState } from 'react'
 import { decodePayload } from '../live/payload'
 import { createClient } from '../live/remote'
-import { usePoll } from '../live/usePoll'
+import { nextDelay, usePoll } from '../live/usePoll'
 import { store } from '../storage/browserStore'
 import { parseTournament } from '../storage/storage'
 import { Board } from './Board'
@@ -2846,17 +2872,34 @@ export function Live({ payload }: { payload: string }) {
       setMode({ kind: 'bad' })
       return
     }
-    let dead = false
+    let stopped = false
+    let fails = 0
+    let timer: number | null = null
 
-    void client.get(null).then((r) => {
-      if (dead) return
+    const attempt = (): void => void client.get(null).then((r) => {
+      if (stopped) return
+
       if (!r.ok) {
-        // 網絡問題唔好當條 link 爛 —— 場地 wifi 閃一閃就叫人「搵返個主辦
-        // 攞條新 link」係誤導。留喺等緊嗰版，下面 usePoll 會一路重試。
-        if (r.err === 'network') return
-        setMode({ kind: 'bad' })
+        /*
+          分開「條 link 真係爛」同「一時三刻連唔到」。
+
+          `bad-token` = 條 link 真係唔啱（或者張 sheet 換咗場）—— 等幾耐都冇用。
+          `network` / `busy`（段 script 攞唔到鎖）/ `bad-response`（Google 間唔中
+          派一版 HTML 錯誤頁）全部係一時嘅，要重試。
+
+          ⚠ 呢度一定要自己重試。`usePoll` 淨係喺 `LiveBoard` 入面行，而
+          `LiveBoard` 要 mode 變咗 'view' 先 render —— 即係第一次 GET 失敗
+          就永遠冇人再試，個畫面會凍死喺「拉緊場賽事…」。
+        */
+        if (r.err === 'bad-token' || r.err === 'bad-data') {
+          setMode({ kind: 'bad' })
+          return
+        }
+        fails += 1
+        timer = window.setTimeout(attempt, nextDelay(fails))
         return
       }
+
       if (r.t === null) {
         setMode({ kind: 'bad' })
         return
@@ -2899,8 +2942,11 @@ export function Live({ payload }: { payload: string }) {
       setMode({ kind: 'edit', id: withLive.id })
     })
 
+    attempt()
+
     return () => {
-      dead = true
+      stopped = true
+      if (timer !== null) clearTimeout(timer)
     }
   }, [parsed, client])
 
@@ -3296,11 +3342,16 @@ describe.skipIf(SCRIPT === '')('真 deployment 嘅合約', () => {
   /**
    * 個安全性重點：**觀眾攞唔到任何 token**。
    *
-   * 兩重保險都要驗 —— 推上去嗰份 `live` 剝走咗（客戶端做），
-   * 而段 script 個 `view` field 淨係派俾 edit（server 做）。
-   * 呢個係唯一自動驗到呢件事嘅地方，唔好淨係靠人手清單。
+   * 特登餵一份**帶住 token** 嘅資料上去 —— 即係扮一個剝漏咗嘅客戶端。
+   * 段 script 要自己剝走佢（`stripLive_`）。
+   *
+   * 呢一點好緊要：剝走呢件事如果淨係喺客戶端做，一個寫錯咗嘅 edit-token
+   * 客戶端就可以把兩個 token 一次過發佈俾全部觀眾。段 script 係所有寫入
+   * 嘅共同樽頸，喺嗰度守先真係守得住。
+   *
+   * 順手驗埋 `view` field 淨係派俾 edit。
    */
-  it('觀眾攞唔到任何 token', async () => {
+  it('觀眾攞唔到任何 token，就算客戶端剝漏咗', async () => {
     const admin = createClient(SCRIPT, edit)
     await admin.claim('devA', true)
     await admin.push({ ...t('保安測試'), live: { scriptId: SCRIPT, edit, view } }, 'devA')
@@ -3308,7 +3359,7 @@ describe.skipIf(SCRIPT === '')('真 deployment 嘅合約', () => {
     const asViewer = await createClient(SCRIPT, view).get(null)
     expect(asViewer.ok).toBe(true)
     expect(asViewer.ok && asViewer.view).toBeUndefined() // 段 script 唔派
-    expect(asViewer.ok && asViewer.t?.live).toBeNull() // 客戶端剝走咗
+    expect(asViewer.ok && asViewer.t?.live).toBeNull() // 段 script 剝走咗
 
     const asAdmin = await admin.get(null)
     expect(asAdmin.ok && asAdmin.view).toBe(view) // edit 就派得
@@ -3323,12 +3374,22 @@ describe.skipIf(SCRIPT === '')('真 deployment 嘅合約', () => {
   it('emoji 啱啱跨過分段位都唔會爛', async () => {
     const admin = createClient(SCRIPT, edit)
     await admin.claim('devA', true)
-    // 40,000 係段 script 個 CHUNK_SIZE。個 emoji 擺喺個位度跨界。
-    const name = 'x'.repeat(39_999) + '🌀' + 'y'.repeat(10)
-    expect((await admin.push({ ...t(name), live: null }, 'devA')).ok).toBe(true)
-    const got = await admin.get(null)
-    expect(got.ok && got.t?.name).toBe(name)
-  }, 60_000)
+
+    /*
+      分段位係喺**成份 JSON** 嘅第 40,000 個字元，唔係個名嘅第 40,000 個。
+      個名前面仲有 `{"id":"ct1","name":"…` 呢一橛，所以直接 `'x'.repeat(39_999)`
+      會把個 emoji 推到第 40,019 位 —— 舒舒服服喺第二段入面，
+      個測試會過，但佢想試嗰件事（切開一隻 surrogate pair）根本冇發生過。
+
+      所以掃一個範圍，總有一兩個真係踩正。
+    */
+    for (const pad of [39_980, 39_985, 39_990]) {
+      const name = 'x'.repeat(pad) + '🌀' + 'y'.repeat(10)
+      expect((await admin.push(t(name), 'devA')).ok).toBe(true)
+      const got = await admin.get(null)
+      expect(got.ok && got.t?.name).toBe(name)
+    }
+  }, 120_000)
 
   it('大過一格上限嘅資料都推得上、拉得返', async () => {
     const admin = createClient(SCRIPT, edit)
@@ -3414,5 +3475,6 @@ git commit -m "Contract test 打真 deployment；README 講埋即時分享"
 - [ ] 20 人賽事（190 場）推得上、拉得返，張 sheet B6 ≥ 2
 - [ ] 段 script 改完行過 `apps-script/README.md` 嗰份人手清單
 - [ ] **打開觀眾嗰個 GET 嘅 response，確認冇任何 `edit-` 開頭嘅 token**
+- [ ] 開分享 link 嗰陣熄咗 wifi → 見到重試，開返 wifi 就入到（唔係凍死喺「拉緊…」）
 - [ ] 換場（同一張 sheet 擺第二場賽事）行得通，而且會問你確認
 - [ ] 部機個鐘撥快 10 分鐘，入分位仍然用得（時鐘冇撈埋一齊）
