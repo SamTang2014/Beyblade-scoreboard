@@ -1092,7 +1092,8 @@ export type LiveErr =
   | 'bad-response'
 
 export type GetResult =
-  | { ok: true; role: 'edit' | 'view'; v: number; t: Tournament | null }
+  /** `view` 淨係 edit token 收到 —— 佢要靠呢個先派得出觀眾 link。 */
+  | { ok: true; role: 'edit' | 'view'; v: number; t: Tournament | null; view?: string }
   | { ok: false; err: LiveErr }
 
 export type PushResult = { ok: true; v: number } | { ok: false; err: LiveErr; until?: number }
@@ -2184,7 +2185,8 @@ git commit -m "佔位狀態機：純 reducer，5 分鐘有效期配 1 分鐘心�
 - Consumes: Task 7 嘅 `Seat` 系列；Task 4 嘅 `LiveClient`
 - Produces:
   - `createQueue(client, who): { push(t): void; pending(): number; drain(): Promise<void> }`
-  - `useLiveSync(tournament, live, update): { seat, sync, claim, release, pending }`
+  - `useLiveSync(tournament: Tournament | null, adopt: (t: Tournament) => void): { seat: Seat; status: SyncStatus | undefined; claim: (force: boolean) => Promise<void>; onChanged: (t: Tournament) => void }`
+  - `type SyncStatus = { label: string; bad: boolean }`
 
 - [ ] **Step 1: 寫住會 fail 嘅測試**
 
@@ -2340,7 +2342,9 @@ export function createQueue(
       if (r.ok) {
         // 推期間可能又有新改動入咗隊 —— 咁就唔好清走佢。
         if (waiting === t) waiting = null
-      } else if (r.err === 'not-holder' || r.err === 'read-only') {
+      } else if (r.err === 'not-holder' || r.err === 'read-only' || r.err === 'bad-token') {
+        // bad-token = 張 sheet 換咗場（舊 token 死咗）。死撞冇用，
+        // 而且唔停低嘅話個狀態會一路顯示「同步緊」，講緊大話。
         blocked = true
       }
       // network 之類：留喺隊度，下次再推。
@@ -2408,6 +2412,8 @@ export function useLiveSync(
   const [seat, setSeat] = useState<Seat>({ kind: 'none' })
   const [pending, setPending] = useState(0)
   const [offline, setOffline] = useState(false)
+  /** 條 link 死咗（多數係張 sheet 換咗第二場賽事）。 */
+  const [dead, setDead] = useState(false)
 
   /*
     啲 timer 讀 ref 唔讀 state。
@@ -2437,6 +2443,7 @@ export function useLiveSync(
               version.current = r.v
             }
             setOffline(!r.ok && r.err === 'network')
+            if (!r.ok && r.err === 'bad-token') setDead(true)
           }),
     [client, who],
   )
@@ -2446,6 +2453,7 @@ export function useLiveSync(
       if (client === null || queue === null) return
       const r = await client.claim(who, force)
       setSeat(afterClaim(r, Date.now()))
+      if (!r.ok && r.err === 'bad-token') setDead(true)
       if (r.ok) {
         lastBeat.current = Date.now()
         queue.unblock()
@@ -2468,8 +2476,10 @@ export function useLiveSync(
   )
 
   /*
-    開場先攞位。主辦（記得呢張 sheet 嗰部）直接 force —— 佢張 sheet 佢話事；
-    入分 link 嗰部就要等現任過期。
+    開場先試攞位，**唔 force**。
+
+    就算係主辦都唔好自動搶 —— 佢可能淨係開個 tab 望一望，唔應該靜靜雞
+    踢走緊入緊分嗰個人。要搶就撳「收返入分位」，撳嗰下先傳 force。
   */
   useEffect(() => {
     if (client === null) return
@@ -2509,6 +2519,12 @@ export function useLiveSync(
     const tick = async (): Promise<void> => {
       if (dead || document.hidden) return
       if (canEdit(seatRef.current, Date.now())) return // 我坐緊，唔使拉
+      /*
+        本機仲有嘢未推就唔好蓋 —— 蓋咗就真係冇咗（隊列淨係喺記憶體，
+        reload 一次就消失）。等佢攞返個位、推咗先再收遠端嘅嘢。
+      */
+      if (queue !== null && queue.pending() > 0) return
+
       const r = await client.get(version.current)
       if (dead) return
       setOffline(!r.ok && r.err === 'network')
@@ -2522,7 +2538,7 @@ export function useLiveSync(
       dead = true
       clearInterval(timer)
     }
-  }, [client, adopt])
+  }, [client, adopt, queue])
 
   /** 離開之前讓返個位，等下一個人唔使等 5 分鐘。 */
   useEffect(() => {
@@ -2537,7 +2553,9 @@ export function useLiveSync(
   const status: SyncStatus | undefined =
     live === null
       ? undefined
-      : offline
+      : dead
+        ? { label: '條分享 link 死咗（張 sheet 換咗場）', bad: true }
+        : offline
         ? { label: pending > 0 ? `離線（${pending} 個改動未推）` : '離線', bad: true }
         : seat.kind === 'lost' || seat.kind === 'theirs'
           ? { label: '入分位喺第二部機', bad: true }
@@ -2619,11 +2637,30 @@ export function useTournament(id: string) {
     }
   }, [])
 
-  /** 由遠端拉到新版本，直接覆蓋本機。**唔會**反過嚟推上去。 */
+  /**
+   * 由遠端拉到新版本，覆蓋本機。**唔會**反過嚟推上去。
+   *
+   * ⚠⚠ `live` 一定要保住本機嗰個，唔可以用遠端嗰個。
+   *
+   * 張 sheet 上面嗰份 `live` **永遠係 null** —— 推之前特登剝走咗，唔可以漏
+   * token 俾觀眾。所以照單全收嘅話，本機個 `live` 就會俾 null 蓋走，跟住：
+   * client 變 null → sync 靜靜雞死 → `editable` 因為 `live === null` 反而變返
+   * true → 啲掣解鎖 → 之後入嘅分全部淨係留喺本機，永遠推唔上去，
+   * 而個介面睇落一切正常。
+   *
+   * 呢個必定會發生：入分 link 嗰部機一等到主辦第一次 push 就中招。
+   */
   const adopt = useCallback((t: Tournament) => {
-    const saved = store.save(t)
-    latest.current = saved
-    setTournament(saved)
+    try {
+      const keep = latest.current?.live ?? null
+      const saved = store.save({ ...t, live: keep })
+      latest.current = saved
+      setTournament(saved)
+      setError(null)
+    } catch (e) {
+      // localStorage 爆咗都唔好變成 unhandled rejection。
+      setError(e instanceof Error ? e.message : '存唔到落瀏覽器。')
+    }
   }, [])
 
   const live = useLiveSync(tournament, adopt)
@@ -2642,6 +2679,7 @@ export function useTournament(id: string) {
 `src/storage/browserStore.test.ts`（新檔）：
 
 ```ts
+// @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest'
 
 /**
@@ -2677,9 +2715,24 @@ describe('每次改動都會推上去', () => {
 })
 ```
 
-**呢個測試要 `@testing-library/react`**，而個 repo 而家冇。如果唔想加 dependency，
-就改成人手驗：喺 `update` 入面暫時 `console.log('推:', saved.name)`，入一場分，
-確認 console 見到，然後剷走。**唔好跳過呢一步** —— 呢條線係整個 feature 嘅命門。
+**呢個測試要裝兩樣嘢，唔止一樣：**
+
+```
+npm i -D @testing-library/react jsdom
+```
+
+`vite.config.ts` 而家係 `environment: 'node'` —— `renderHook` 要 DOM，唔換就會
+死喺 `document is not defined`。個檔頂加一行就得（唔使改成個 config，
+其他測試繼續行 node）：
+
+```ts
+// @vitest-environment jsdom
+```
+
+**呢個係整個 feature 唯一有自動測試守住嘅接線位**，值得裝兩個 dev dependency。
+如果真係唔想裝：改成人手驗 —— 喺 `update` 入面暫時 `console.log('推:', saved.name)`，
+入一場分，確認 console 見到，然後剷走。**但唔好跳過呢一步**，呢條線斷咗
+成個 feature 靜靜雞死而冇任何嘢會變紅。
 
 - [ ] **Step 3: Console 鎖入分掣**
 
@@ -2797,7 +2850,14 @@ export function Live({ payload }: { payload: string }) {
 
     void client.get(null).then((r) => {
       if (dead) return
-      if (!r.ok || r.t === null) {
+      if (!r.ok) {
+        // 網絡問題唔好當條 link 爛 —— 場地 wifi 閃一閃就叫人「搵返個主辦
+        // 攞條新 link」係誤導。留喺等緊嗰版，下面 usePoll 會一路重試。
+        if (r.err === 'network') return
+        setMode({ kind: 'bad' })
+        return
+      }
+      if (r.t === null) {
         setMode({ kind: 'bad' })
         return
       }
@@ -3056,9 +3116,31 @@ function Recover() {
       return
     }
 
+    /*
+      ⚠ 兩樣嘢一定要做，同 Live.tsx 嗰邊一模一樣：
+
+      1. **驗過先存。** `store.save` 唔會驗，但下次 `readAll()` 會行
+         `parseTournament`，parse 唔到就靜靜雞丟走成場賽事。即係一份爛資料
+         會令你啱啱救返嚟嗰場賽事無聲無息消失。
+
+      2. **砌返個 `live`。** 張 sheet 上面嗰份 `live` 永遠係 null（推之前剝走咗），
+         照單全收嘅話你救返嚟嗰場賽事係「冇分享」嘅 —— 收唔返個位、
+         分享頁又叫你由頭設定過，成條救援路等於白行。
+    */
+    let clean: Tournament
+    try {
+      clean = parseTournament(r.t)
+    } catch {
+      setErr('張 sheet 上面嗰份資料讀唔明，可能俾人手改過。')
+      return
+    }
+
     rememberSheet(scriptId, token.trim())
-    store.save(r.t)
-    location.hash = `#/t/${r.t.id}`
+    store.save({
+      ...clean,
+      live: { scriptId, edit: token.trim(), view: r.view ?? '' },
+    })
+    location.hash = `#/t/${clean.id}`
   }
 
   return (
@@ -3107,7 +3189,7 @@ function Recover() {
 
 跟住喺 `Share` 個 return 入面、`{live === null ? … : …}` 後面加 `{live === null && <Recover />}` —— 已經開咗直播就唔使出呢個。
 
-`Share.tsx` 頂部要加 `import { store } from '../storage/browserStore'`。
+`Share.tsx` 頂部要加 `import { store } from '../storage/browserStore'`、`import { parseTournament } from '../storage/storage'`、同埋 `import type { Tournament } from '../engine/types'`。
 
 CSS：
 
@@ -3176,7 +3258,7 @@ describe.skipIf(SCRIPT === '')('真 deployment 嘅合約', () => {
   it('行一轉：init → claim → push → get', async () => {
     const admin = createClient(SCRIPT, edit)
 
-    const init = await admin.init(edit, view, t('合約測試'))
+    const init = await admin.init(edit, view, { ...t('合約測試'), live: null })
     expect(init.ok).toBe(true)
 
     expect((await admin.claim('devA', true)).ok).toBe(true)
@@ -3209,6 +3291,43 @@ describe.skipIf(SCRIPT === '')('真 deployment 嘅合約', () => {
     const r = await createClient(SCRIPT, 'nope').get(null)
     expect(r.ok).toBe(false)
     expect(!r.ok && r.err).toBe('bad-token')
+  }, 60_000)
+
+  /**
+   * 個安全性重點：**觀眾攞唔到任何 token**。
+   *
+   * 兩重保險都要驗 —— 推上去嗰份 `live` 剝走咗（客戶端做），
+   * 而段 script 個 `view` field 淨係派俾 edit（server 做）。
+   * 呢個係唯一自動驗到呢件事嘅地方，唔好淨係靠人手清單。
+   */
+  it('觀眾攞唔到任何 token', async () => {
+    const admin = createClient(SCRIPT, edit)
+    await admin.claim('devA', true)
+    await admin.push({ ...t('保安測試'), live: { scriptId: SCRIPT, edit, view } }, 'devA')
+
+    const asViewer = await createClient(SCRIPT, view).get(null)
+    expect(asViewer.ok).toBe(true)
+    expect(asViewer.ok && asViewer.view).toBeUndefined() // 段 script 唔派
+    expect(asViewer.ok && asViewer.t?.live).toBeNull() // 客戶端剝走咗
+
+    const asAdmin = await admin.get(null)
+    expect(asAdmin.ok && asAdmin.view).toBe(view) // edit 就派得
+  }, 60_000)
+
+  /**
+   * 分段位切中一個 emoji（兩個 code unit）。
+   *
+   * `slice` 切開再接返理論上原樣，但呢一步係經 Google Sheets 存過一轉 ——
+   * 佢有冇動過一隻孤兒 surrogate，只有打真嘢先知。
+   */
+  it('emoji 啱啱跨過分段位都唔會爛', async () => {
+    const admin = createClient(SCRIPT, edit)
+    await admin.claim('devA', true)
+    // 40,000 係段 script 個 CHUNK_SIZE。個 emoji 擺喺個位度跨界。
+    const name = 'x'.repeat(39_999) + '🌀' + 'y'.repeat(10)
+    expect((await admin.push({ ...t(name), live: null }, 'devA')).ok).toBe(true)
+    const got = await admin.get(null)
+    expect(got.ok && got.t?.name).toBe(name)
   }, 60_000)
 
   it('大過一格上限嘅資料都推得上、拉得返', async () => {
