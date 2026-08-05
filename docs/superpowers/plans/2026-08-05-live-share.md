@@ -194,13 +194,14 @@ export function parseScriptId(input: string): string | null {
   const s = input.trim()
   if (s === '') return null
 
+  // 有 prefix 就唔使靠長度猜 —— 條網址本身已經係證據。
   if (s.startsWith(PREFIX)) {
-    const rest = s.slice(PREFIX.length)
-    const id = rest.split('/')[0] ?? ''
-    return /^[A-Za-z0-9_-]{10,}$/.test(id) ? id : null
+    const id = (s.slice(PREFIX.length).split('/')[0] ?? '').trim()
+    return /^[A-Za-z0-9_-]+$/.test(id) ? id : null
   }
 
-  // 淨係貼個 id。要夠長先當佢係，唔係 'hello' 都會當啱。
+  // 淨係貼個 id 就冇證據，要靠個樣估。真嘅 deployment id 成 60 個字，
+  // 所以要夠長先當佢係 —— 唔係 'helloworld' 都會當啱。
   return /^[A-Za-z0-9_-]{10,}$/.test(s) ? s : null
 }
 ```
