@@ -1,0 +1,133 @@
+// @vitest-environment jsdom
+import { act, renderHook } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Tournament } from '../engine/types'
+
+/**
+ * 釘住成個直播功能嘅命門：**每次改動都要推上去**。
+ *
+ * `update()` → `store.save()` → `push.current?.(saved)` → `useLiveSync` 嘅
+ * `onChanged` → 隊列 → 段 script。
+ *
+ * 呢條線斷咗嘅話，所有嘢照樣存落 localStorage、介面一切正常、
+ * 全部其他測試照樣綠 —— 但一分都推唔上張 sheet，而觀眾望住一個永遠唔郁
+ * 嘅畫面。冇任何其他測試捉得到，所以要專登釘住佢。
+ *
+ * ⚠ 呢個檔要 jsdom（`renderHook` 要 DOM），全個 project 得佢一個。
+ */
+
+const pushed: Tournament[] = []
+/** `useTournament` 傳俾 sync 嗰個 `adopt` —— 捉住佢先驗得到。 */
+let adopt: ((t: Tournament) => void) | null = null
+
+vi.mock('../live/sync', () => ({
+  useLiveSync: (_t: Tournament | null, gotAdopt: (t: Tournament) => void) => {
+    adopt = gotAdopt
+    return {
+      seat: { kind: 'mine', until: Date.now() + 300_000 },
+      status: undefined,
+      claim: async () => {},
+      onChanged: (t: Tournament) => void pushed.push(t),
+    }
+  },
+}))
+
+beforeEach(() => {
+  pushed.length = 0
+  adopt = null
+  localStorage.clear()
+})
+
+async function load() {
+  const { store, useTournament } = await import('./browserStore')
+  return { store, useTournament }
+}
+
+describe('每次改動都會推上去', () => {
+  it('update() 之後 onChanged 收到最新嗰份', async () => {
+    const { store, useTournament } = await load()
+    const made = store.create('測試')
+
+    const { result } = renderHook(() => useTournament(made.id))
+    act(() => result.current.update((t) => ({ ...t, name: '改咗' })))
+
+    expect(pushed).toHaveLength(1)
+    expect(pushed[0]!.name).toBe('改咗')
+  })
+
+  it('連續改幾次就推幾次', async () => {
+    const { store, useTournament } = await load()
+    const made = store.create('測試')
+
+    const { result } = renderHook(() => useTournament(made.id))
+    act(() => result.current.update((t) => ({ ...t, name: 'A' })))
+    act(() => result.current.update((t) => ({ ...t, name: 'B' })))
+    act(() => result.current.update((t) => ({ ...t, name: 'C' })))
+
+    expect(pushed.map((t) => t.name)).toEqual(['A', 'B', 'C'])
+  })
+
+  it('推嘅係存咗之後嗰份 —— store.save 補嘅 updatedAt 都要喺入面', async () => {
+    const { store, useTournament } = await load()
+    const made = store.create('測試')
+
+    const { result } = renderHook(() => useTournament(made.id))
+    act(() => result.current.update((t) => ({ ...t, name: '改咗' })))
+
+    expect(pushed[0]!.updatedAt).toBe(store.get(made.id)!.updatedAt)
+  })
+
+  it('乜都冇改就唔會推', async () => {
+    const { store, useTournament } = await load()
+    const made = store.create('測試')
+    renderHook(() => useTournament(made.id))
+    expect(pushed).toHaveLength(0)
+  })
+})
+
+/**
+ * `adopt` 由遠端拉到新版本覆蓋本機。
+ *
+ * 張 sheet 上面嗰份 `live` 永遠係 null（推之前剝走咗，唔可以漏 token 俾觀眾），
+ * 所以照單全收就會抹走本機個 `live` —— 跟住 sync 靜靜雞死、啲掣反而解鎖、
+ * 之後入嘅分永遠推唔上去，而個介面睇落一切正常。
+ */
+describe('adopt 唔可以抹走本機個 live', () => {
+  const LIVE = { scriptId: 'S1', edit: 'edit-a', view: 'view-b' }
+
+  it('遠端嗰份 live 係 null，但本機要保住', async () => {
+    const { store, useTournament } = await load()
+    const made = store.create('測試')
+    store.save({ ...made, live: LIVE })
+
+    const { result } = renderHook(() => useTournament(made.id))
+    expect(adopt).not.toBeNull()
+
+    act(() => adopt!({ ...made, name: '遠端改咗', live: null }))
+
+    expect(result.current.tournament!.live).toEqual(LIVE)
+    expect(result.current.tournament!.name).toBe('遠端改咗')
+    expect(store.get(made.id)!.live).toEqual(LIVE)
+  })
+
+  it('本機本來就冇 live（玩下場）就照樣係 null', async () => {
+    const { store, useTournament } = await load()
+    const made = store.create('測試')
+
+    const { result } = renderHook(() => useTournament(made.id))
+    act(() => adopt!({ ...made, name: '遠端改咗', live: null }))
+
+    expect(result.current.tournament!.live).toBeNull()
+  })
+
+  it('adopt 唔會反過嚟推上去 —— 唔係兩部機會互相推到天荒地老', async () => {
+    const { store, useTournament } = await load()
+    const made = store.create('測試')
+    store.save({ ...made, live: LIVE })
+
+    renderHook(() => useTournament(made.id))
+    act(() => adopt!({ ...made, name: '遠端改咗', live: null }))
+
+    expect(pushed).toHaveLength(0)
+  })
+})

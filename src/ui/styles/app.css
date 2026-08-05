@@ -1780,3 +1780,25 @@ table {
   bottom: var(--sp-4);
   z-index: 20;
 }
+
+/* 直播同步狀態。細粒，唔好搶咗啲 tab 嘅位。 */
+.syncdot {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  color: var(--ink-soft);
+  font-size: var(--step--2);
+  font-variation-settings: 'wdth' 90, 'wght' 650;
+  white-space: nowrap;
+}
+
+.syncdot--bad {
+  color: var(--red);
+}
+
+/* 窄畫面淨係留粒點，唔出字。 */
+@media (max-width: 40rem) {
+  .syncdot__text {
+    display: none;
+  }
+}

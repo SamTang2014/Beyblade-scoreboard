@@ -16,6 +16,8 @@ import {
 import { completedCount } from '../engine/standings'
 import { bracketRoundName, clearDownstream, downstreamWithScores, propagate, totalBracketRounds } from '../engine/bracket'
 import { poolLabel } from '../engine/pools'
+import { canEdit, seatLabel } from '../live/seat'
+import { savedSheet } from '../live/device'
 import { groupStageComplete, hasBracket, nextPlayable } from '../engine/tournament'
 import { downloadJson } from '../lib/download'
 import { store } from '../storage/browserStore'
@@ -25,13 +27,20 @@ import { NotFound } from './Setup'
 import type { FinishType, Match, Tournament } from '../engine/types'
 
 export function Console({ id, matchId = null }: { id: string; matchId?: string | null }) {
-  const { tournament, update, error } = useTournament(id)
+  const { tournament, update, error, live } = useTournament(id)
 
   if (tournament === null) return <NotFound />
   if (tournament.matches.length === 0) return <NeedsSchedule id={id} name={tournament.name} />
 
   return (
-    <ConsoleBody id={id} matchId={matchId} tournament={tournament} update={update} error={error} />
+    <ConsoleBody
+      id={id}
+      matchId={matchId}
+      tournament={tournament}
+      update={update}
+      error={error}
+      live={live}
+    />
   )
 }
 
@@ -42,12 +51,14 @@ function ConsoleBody({
   tournament,
   update,
   error,
+  live,
 }: {
   id: string
   matchId: string | null
   tournament: Tournament
   update: (change: (t: Tournament) => Tournament) => void
   error: string | null
+  live: ReturnType<typeof useTournament>['live']
 }) {
   const [focusId, setFocusId] = useState<string | null>(matchId)
   const [armedEdit, setArmedEdit] = useState(false)
@@ -68,6 +79,23 @@ function ConsoleBody({
   // 通常 4 分滿。但 2 分嗰陣打一次極限（3 分）會去到 5 分，
   // 所以條間度要就返實際最高分，唔係最後嗰格會爆出去。
   const meterMax = Math.max(MATCH_TARGET, score.a, score.b)
+
+  /*
+    坐唔到入分位就唔准入分。**冇開直播（玩下場）就永遠准** ——
+    唔好因為加咗分享而整壞單機用法。
+  */
+  const editable = tournament.live === null || canEdit(live.seat, Date.now())
+
+  /*
+    邊部先算主辦？—— **記唔記得呢張 sheet**。
+
+    主辦喺開賽設定貼網址嗰陣 `rememberSheet` 記低咗；入分 link 嗰部機
+    冇經過嗰一步，所以永遠唔會等於。
+
+    唔可以用「本機有冇呢場賽事」做準 —— 入分 link 嗰部機第一次開之後
+    都會存落 localStorage，兩邊就分唔開。
+  */
+  const isHost = tournament.live !== null && savedSheet()?.scriptId === tournament.live.scriptId
 
   /*
     名下面嗰個極限次數，數嘅係**打緊呢場所屬階段**嗰批場次 —— 即係永遠等於
@@ -166,6 +194,7 @@ function ConsoleBody({
         name={tournament.name || '未命名賽事'}
         current="console"
         mode={tournament.mode}
+        sync={live.status}
       />
 
       <div className="console">
@@ -196,6 +225,16 @@ function ConsoleBody({
           </p>
         )}
 
+        {tournament.live !== null && !editable && (
+          <p className="note note--bad" role="status">
+            <span>⚠</span>
+            <span>{seatLabel(live.seat, Date.now())}</span>
+            <button className="btn btn--tight" onClick={() => void live.claim(isHost)}>
+              {isHost ? '收返入分位' : '接手入分'}
+            </button>
+          </p>
+        )}
+
         <div className="arena">
           <div className="arena__wash" aria-hidden="true" />
           <div className="arena__seam" aria-hidden="true" />
@@ -207,7 +246,7 @@ function ConsoleBody({
             score={score.a}
             rounds={match.rounds}
             playerId={match.aId}
-            locked={winnerId !== null || needsConfirm}
+            locked={winnerId !== null || needsConfirm || !editable}
             meterMax={meterMax}
             xtDone={xtScope === null || match.aId === null ? null : xtremeWins(xtScope, match.aId)}
             xtLive={match.aId === null ? 0 : xtremeInMatch(match, match.aId)}
@@ -221,7 +260,7 @@ function ConsoleBody({
             score={score.b}
             rounds={match.rounds}
             playerId={match.bId}
-            locked={winnerId !== null || needsConfirm}
+            locked={winnerId !== null || needsConfirm || !editable}
             meterMax={meterMax}
             xtDone={xtScope === null || match.bId === null ? null : xtremeWins(xtScope, match.bId)}
             xtLive={match.bId === null ? 0 : xtremeInMatch(match, match.bId)}

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { decodePayload } from '../live/payload'
 import { createClient } from '../live/remote'
 import { nextDelay, usePoll } from '../live/usePoll'
+import { store } from '../storage/browserStore'
 import { parseTournament } from '../storage/storage'
 import { Board } from './Board'
 import type { Tournament } from '../engine/types'
@@ -18,6 +19,8 @@ type Mode =
   | { kind: 'loading'; fails: number }
   | { kind: 'bad' }
   | { kind: 'view' }
+  /** 入分模式：已經存落本機，等緊跳去正常畫面。 */
+  | { kind: 'edit'; id: string }
 
 export function Live({ payload }: { payload: string }) {
   const parsed = useMemo(() => decodePayload(payload), [payload])
@@ -78,13 +81,35 @@ export function Live({ payload }: { payload: string }) {
           觀眾模式雖然唔會存落 localStorage，但驗一驗都要 —— 唔係
           畫面會用住一份唔知咩形狀嘅嘢去 render。
         */
+        let clean: Tournament
         try {
-          setT(parseTournament(r.t))
+          clean = parseTournament(r.t)
         } catch {
           setMode({ kind: 'bad' })
           return
         }
-        setMode({ kind: 'view' })
+
+        if (r.role === 'view') {
+          setT(clean)
+          setMode({ kind: 'view' })
+          return
+        }
+
+        /*
+          入分模式：由條 link 本身砌返個 `live`。
+
+          張 sheet 上面嗰份 `live` 一定係 null（推之前剝走咗，唔可以漏 token
+          俾觀眾），所以要自己砌：`scriptId` 同 `edit` 喺 payload 度，
+          `view` 由段 script 額外派返 —— 佢淨係派俾 edit token。
+
+          存嗰陣用返嗰場賽事本身個 id。佢部機已經有同一個 id 就直接蓋過 ——
+          遠端嗰份係權威，本機嗰份只係 cache。
+        */
+        store.save({
+          ...clean,
+          live: { scriptId: parsed.s, edit: parsed.k, view: r.view ?? '' },
+        })
+        setMode({ kind: 'edit', id: clean.id })
       })
 
     attempt()
@@ -95,6 +120,12 @@ export function Live({ payload }: { payload: string }) {
     }
     // `tryAgain` 落 deps —— 撳「再試」就重跑成個 effect。
   }, [parsed, client, tryAgain])
+
+  // ⚠ 跳頁一定要喺 effect 度做，唔可以喺 render 期間 ——
+  // StrictMode 會 render 兩次，喺 render 度改 location 會跑兩次。
+  useEffect(() => {
+    if (mode.kind === 'edit') location.replace(`#/t/${mode.id}`)
+  }, [mode])
 
   if (mode.kind === 'bad') return <BadLink />
   if (mode.kind === 'view' && t !== null && client !== null) {
