@@ -274,7 +274,7 @@ live: { scriptId: string; edit: string; view: string } | null
 段 `Code.gs` 跑喺 Google 嘅 runtime，vitest 掂唔到。做兩樣補救：
 
 1. 一份人手測試清單（deploy 一次行一次）
-2. 一個 contract test：`LIVE_SCRIPT_URL=… npm run test:live` 打真嘅 deployment 行一轉 init → claim → push → get → 第二部機 claim 俾拒絕 → force claim → view token 寫入俾拒絕。冇設個 env var 就跳過。
+2. 一個 contract test：`LIVE_SCRIPT_ID=… npm run test:live` 打真嘅 deployment 行一轉 init → claim → push → get → 第二部機 claim 俾拒絕 → force claim → view token 寫入俾拒絕。冇設個 env var 就跳過。
 
 ## 分期
 
