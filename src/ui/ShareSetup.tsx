@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { createClient } from '../live/remote'
 import { encodePayload, parseScriptId, scriptUrl } from '../live/payload'
 import { newToken, rememberSheet, savedSheet } from '../live/device'
+import { store } from '../storage/browserStore'
+import { parseTournament } from '../storage/storage'
 import type { Tournament } from '../engine/types'
 
 /**
@@ -92,9 +94,126 @@ export function ShareSetup({
   }
 
   return live === null ? (
-    <SetupSteps url={url} onUrl={setUrl} busy={busy} err={err} onStart={() => void start()} />
+    <>
+      <SetupSteps url={url} onUrl={setUrl} busy={busy} err={err} onStart={() => void start()} />
+      <Recover />
+    </>
   ) : (
     <Links edit={linkFor(live.scriptId, live.edit)} view={linkFor(live.scriptId, live.view)} />
+  )
+}
+
+/**
+ * 主辦部機冇咗嘅救援路。
+ *
+ * 兩個 token 就寫喺張 sheet B1／B2，而張 sheet 喺主辦自己個 Drive ——
+ * 所以主辦冇可能被永久鎖喺外面。呢個係「token 擺喺張 sheet 度」呢個決定
+ * 送嘅副產品。
+ */
+function Recover() {
+  const [url, setUrl] = useState('')
+  const [token, setToken] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  async function go(): Promise<void> {
+    const scriptId = parseScriptId(url)
+    if (scriptId === null) {
+      setErr('條網址唔似 Apps Script 個 deployment 網址。')
+      return
+    }
+    if (token.trim() === '') {
+      setErr('要貼埋張 sheet B1 格嗰個 edit token。')
+      return
+    }
+
+    setBusy(true)
+    setErr(null)
+    const r = await createClient(scriptId, token.trim()).get(null)
+    setBusy(false)
+
+    if (!r.ok || r.t === null) {
+      setErr(
+        r.ok
+          ? '張 sheet 上面冇賽事資料。'
+          : r.err === 'bad-token'
+            ? '個 token 唔啱。開返你張 sheet，B1 格嗰個先係 edit token。'
+            : '連唔到段 script。檢查下條網址同網絡。',
+      )
+      return
+    }
+
+    /*
+      ⚠ 兩樣嘢一定要做，同 Live.tsx 嗰邊一模一樣：
+
+      1. **驗過先存。** `store.save` 唔會驗，但下次 `readAll()` 會行
+         `parseTournament`，parse 唔到就靜靜雞丟走成場賽事。即係一份爛資料
+         會令你啱啱救返嚟嗰場賽事無聲無息消失。
+
+      2. **砌返個 `live`。** 張 sheet 上面嗰份 `live` 永遠係 null（推之前剝走咗），
+         照單全收嘅話你救返嚟嗰場賽事係「玩下場」—— 收唔返個位、
+         設定頁又叫你由頭嚟過，成條救援路等於白行。
+    */
+    let clean: Tournament
+    try {
+      clean = parseTournament(r.t)
+    } catch {
+      setErr('張 sheet 上面嗰份資料讀唔明，可能俾人手改過。')
+      return
+    }
+
+    rememberSheet(scriptId, token.trim())
+    store.save({
+      ...clean,
+      live: { scriptId, edit: token.trim(), view: r.view ?? '' },
+    })
+    location.hash = `#/t/${clean.id}`
+  }
+
+  return (
+    <details className="recover">
+      <summary>部機爆咗？用返舊嘅 sheet</summary>
+      <p className="note">
+        <span>·</span>
+        <span>
+          開返你張 sheet（喺你自己個 Drive 度），B1 格就係 edit token。
+          連同段 script 條網址一齊貼落嚟，成場賽事就接得返。
+        </span>
+      </p>
+      <div className="field">
+        <label className="field__label" htmlFor="recoverurl">
+          段 script 條網址
+        </label>
+        <input
+          id="recoverurl"
+          className="input chamfer-sm"
+          value={url}
+          placeholder="https://script.google.com/macros/s/…/exec"
+          onChange={(e) => setUrl(e.target.value)}
+        />
+      </div>
+      <div className="field">
+        <label className="field__label" htmlFor="recovertoken">
+          edit token（張 sheet B1 格）
+        </label>
+        <input
+          id="recovertoken"
+          className="input chamfer-sm"
+          value={token}
+          placeholder="edit-…"
+          onChange={(e) => setToken(e.target.value)}
+        />
+      </div>
+      {err !== null && (
+        <p className="note note--bad" role="alert">
+          <span>⚠</span>
+          <span>{err}</span>
+        </p>
+      )}
+      <button className="btn chamfer" disabled={busy} onClick={() => void go()}>
+        {busy ? '搞緊…' : '接返場賽事'}
+      </button>
+    </details>
   )
 }
 
