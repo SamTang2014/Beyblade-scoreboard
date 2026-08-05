@@ -1743,3 +1743,31 @@ table {
   text-align: center;
   color: var(--gold-text);
 }
+
+/* ── 「認真」場設定 ──────────────────────────────────────── */
+
+/* 逐步指引：開 sheet → 貼 code → deploy。 */
+.steps {
+  margin: var(--sp-3) 0 0;
+  padding-left: 1.4em;
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+  line-height: 1.7;
+}
+
+.steps b {
+  color: var(--ink);
+}
+
+.steps code {
+  padding: 0.1em 0.35em;
+  background: var(--floor-sunk);
+  font-size: 0.9em;
+}
+
+.recover summary {
+  cursor: pointer;
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+  font-variation-settings: 'wdth' 90, 'wght' 650;
+}

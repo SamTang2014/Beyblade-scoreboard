@@ -15,7 +15,11 @@ export type Route =
   | { name: 'matrix'; id: string }
   | { name: 'bracket'; id: string }
   | { name: 'board'; id: string }
+  /** 由分享 link 入嚟。payload 未解碼 —— 解碼係 Live.tsx 嘅事。 */
+  | { name: 'live'; payload: string }
 
+// 冇 `share` —— 分享設定收埋咗喺開賽設定（`setup`）入面，唔係獨立一頁。
+// 「玩下」場完全見唔到，所以冇 tab、冇 route。
 const SUB: Record<string, 'setup' | 'schedule' | 'table' | 'matrix' | 'bracket' | 'board'> = {
   setup: 'setup',
   schedule: 'schedule',
@@ -27,6 +31,12 @@ const SUB: Record<string, 'setup' | 'schedule' | 'table' | 'matrix' | 'bracket' 
 
 export function parseHash(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean)
+
+  if (parts[0] === 'live') {
+    const payload = parts[1]
+    return payload === undefined ? { name: 'home' } : { name: 'live', payload }
+  }
+
   if (parts[0] !== 't' || parts[1] === undefined) return { name: 'home' }
 
   const id = parts[1]

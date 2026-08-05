@@ -6,6 +6,7 @@ import { MODE_HINT, MODE_LABEL, canStart, cutOptions, startTournament } from '..
 import { advanceOptions, poolLabel, poolOptions, poolSizes } from '../engine/pools'
 import { newId } from '../lib/id'
 import { go } from '../lib/router'
+import { ShareSetup } from './ShareSetup'
 import { TopBar } from './components/TopBar'
 import type { Player, TournamentMode } from '../engine/types'
 
@@ -14,12 +15,24 @@ export function Setup({ id }: { id: string }) {
   const [draft, setDraft] = useState('')
   const [warning, setWarning] = useState<string | null>(null)
   const [armed, setArmed] = useState<string | null>(null)
+  /*
+    「撳咗認真但未貼網址」嗰個中間狀態。
+
+    唔存落 Tournament —— 存咗就要處理「認真但冇 sheet」呢種半吊子賽事：
+    邊度要當佢認真？邊度唔使？多一個 field 就多一堆分支。
+    開咗直播（`live !== null`）先係真認真，之後 reload 都認得返。
+
+    ⚠ 一定要擺喺下面個 early return **之前** —— hook 唔可以喺條件式後面叫。
+  */
+  const [serious, setSerious] = useState(false)
   const nameBox = useRef<HTMLInputElement>(null)
 
   if (tournament === null) return <NotFound />
 
   const players = tournament.players
   const alreadyStarted = tournament.matches.some((m) => m.rounds.length > 0)
+  const isSerious = tournament.live !== null || serious
+
 
   function addPlayer() {
     const name = draft.trim()
@@ -266,6 +279,57 @@ export function Setup({ id }: { id: string }) {
             </p>
           </div>
         )}
+
+        {/*
+          賽事規模。
+
+          「認真」嘅定義就係「你要畀一張 Google Sheet」—— 唔係我哋加難度，
+          係個結構本身擺喺度：冇張 sheet 就冇地方擺資料，冇地方擺就分享唔到。
+          所以個選擇同個要求係同一件事，唔使分兩步問。
+
+          **唔跟賽制咁鎖住 alreadyStarted** —— 打到一半先想開直播係好正常嘅事
+          （人多咗、有人想睇），開得到，成場賽事連已經入咗嘅分會一次過推上去。
+        */}
+        <div className="field">
+          <span className="field__label">規模</span>
+          <div className="chips">
+            <button
+              className="chip chamfer-sm"
+              aria-pressed={!isSerious}
+              onClick={() => {
+                if (tournament.live === null) {
+                  setSerious(false)
+                  return
+                }
+                if (
+                  confirm('轉返玩下場，兩條分享 link 即刻會死。張 sheet 上面啲資料唔會刪。要轉？')
+                ) {
+                  update((t) => ({ ...t, live: null }))
+                  setSerious(false)
+                }
+              }}
+            >
+              玩下
+            </button>
+            <button
+              className="chip chamfer-sm"
+              aria-pressed={isSerious}
+              onClick={() => setSerious(true)}
+            >
+              認真
+            </button>
+          </div>
+          <p className="note">
+            <span>·</span>
+            <span>
+              {isSerious
+                ? '認真場要一張你自己嘅 Google Sheet 做記錄，開得到直播 —— 一條 link 俾人幫手入分，一條俾人睇住。'
+                : '玩下場乜都唔使畀，資料淨係喺你部機。'}
+            </span>
+          </p>
+        </div>
+
+        {isSerious && <ShareSetup tournament={tournament} update={update} />}
 
         <div className="field">
           <label className="field__label" htmlFor="pname">
