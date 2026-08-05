@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:live": "vitest run src/live/contract.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
