@@ -469,6 +469,9 @@ function init_(sh, m, body) {
   if (edit === '' || view === '' || edit === view) {
     return reply_({ ok: false, err: 'bad-token' })
   }
+  // 同 push_ 一樣：冇 t 就唔好行落去。JSON.stringify(undefined) 返 undefined，
+  // 落到 setValue 會掟錯，個 client 收到一版 HTML 錯誤頁，睇落似網絡問題。
+  if (body.t === undefined || body.t === null) return reply_({ ok: false, err: 'bad-body' })
 
   // 版本要繼續行前，唔可以 reset 做 1 —— 換場之後，一個 `since` 啱啱係 1 嘅
   // 觀眾會以為「冇變」，望住舊畫面唔郁。
@@ -1681,11 +1684,6 @@ export function nextDelay(fails: number): number {
 
 export type PollState = 'loading' | 'live' | 'offline' | 'bad-token' | 'error'
 
-/** 連續失敗咗幾多次。介面要出返俾人睇 —— 靜靜雞重試同凍死一樣咁差。 */
-export interface PollInfo {
-  state: PollState
-  fails: number
-}
 
 /**
  * 一路拉，拉到有新版本就交出嚟。
@@ -1703,6 +1701,8 @@ export function usePoll(
   const fails = useRef(0)
   const timer = useRef<number | null>(null)
   const stopped = useRef(false)
+  /** 個 effect 入面嗰個 `tick`。`refresh` 要行返佢，唔可以另起爐灶。 */
+  const tickRef = useRef<((fresh?: boolean) => Promise<void>) | null>(null)
   const cb = useRef(onData)
   cb.current = onData
 
@@ -1748,6 +1748,7 @@ export function usePoll(
       timer.current = window.setTimeout(() => void tick(), ms)
     }
 
+    tickRef.current = tick
     void tick()
 
     // 切返出嚟即刻拉一次，唔使等下一個週期。
@@ -1761,6 +1762,7 @@ export function usePoll(
 
     return () => {
       stopped.current = true
+      tickRef.current = null
       if (timer.current !== null) clearTimeout(timer.current)
       document.removeEventListener('visibilitychange', onVisible)
     }
@@ -1769,17 +1771,27 @@ export function usePoll(
   return {
     state,
     fails: failCount,
+    /**
+     * 手動再拉一次。
+     *
+     * ⚠⚠ 一定要行返個 `tick`，唔可以自己另外叫一次 `client.get`。
+     *
+     * 之前呢度係咁寫嘅：clear 咗 timer，然後跑一個 one-shot `get`。個 timer
+     * 係成條 poll 鏈**唯一**嘅延續，而 one-shot 兩條分支都冇再 `schedule()` ——
+     * 即係撳完「再試」之後，個 poll 就永遠死咗。成功嘅話仲衰啲：畫面出咗新資料、
+     * 狀態顯示「同步咗」，但之後一世都唔會再更新。電視版擺喺投影機度冇人掂，
+     * 連 `visibilitychange` 都唔會救到佢。
+     *
+     * 呢個 function 之前冇任何 caller（`nextDelay` 先係 usePoll 唯一有測試
+     * 覆蓋嘅嘢），係加咗粒「再試」掣先至走出嚟。所以做完要人手試一次：
+     * 熄 wifi → 撳再試 → 開返 wifi → 確認個表會繼續跳。
+     */
     refresh: () => {
-      version.current = null // 迫佢攞返成份
       if (timer.current !== null) clearTimeout(timer.current)
-      void (async () => {
-        const r = await client.get(null, true)
-        if (r.ok && r.t !== null) {
-          version.current = r.v
-          cb.current(r.t, r.v)
-          setState('live')
-        }
-      })()
+      version.current = null // 迫佢攞返成份
+      fails.current = 0
+      setFailCount(0)
+      void tickRef.current?.(true)
     },
   }
 }
@@ -3044,12 +3056,18 @@ function Waiting({ fails, onRetry }: { fails: number; onRetry: () => void }) {
   return (
     <div className="page stack">
       <p className="empty">連唔到，重試緊…（已試 {fails} 次）</p>
+      {/*
+        講原因要講**去到呢一步先可能發生**嗰啲。
+        「未開直播」同「換咗場」兩樣都係 `bad-token`，即刻出 BadLink，
+        根本入唔到呢條重試路 —— 寫咗喺度只會拉錯用家去查一啲冇問題嘅嘢。
+        真係會令你試到第 8 次嘅，係網絡、段 script 頂唔順、或者條 deployment 冇咗。
+      */}
       {fails >= 8 && (
         <p className="note">
           <span>·</span>
           <span>
-            主辦部機可能未開直播，或者張 sheet 已經換咗第二場賽事。
-            搵返個主辦問問，或者攞條新 link。
+            檢查下部機有冇網絡。都連唔到嘅話，可能係主辦條 script 網址俾人刪咗 ——
+            搵返佢問問。
           </span>
         </p>
       )}
@@ -3439,14 +3457,21 @@ describe.skipIf(SCRIPT === '')('真 deployment 嘅合約', () => {
     await admin.claim('devA', true)
 
     /*
-      分段位係喺**成份 JSON** 嘅第 40,000 個字元，唔係個名嘅第 40,000 個。
-      個名前面仲有 `{"id":"ct1","name":"…` 呢一橛，所以直接 `'x'.repeat(39_999)`
-      會把個 emoji 推到第 40,019 位 —— 舒舒服服喺第二段入面，
-      個測試會過，但佢想試嗰件事（切開一隻 surrogate pair）根本冇發生過。
+      分段位係喺**成份 JSON** 嘅第 40,000 個字元，唔係個名嘅第 40,000 個 ——
+      個名前面仲有 `{"id":"ct1","name":"` 呢 20 個字。
 
-      所以掃一個範圍，總有一兩個真係踩正。
+      個 pad 一定要計，唔可以憑感覺寫死。我試過兩次：
+        · `'x'.repeat(39_999)` → 個 emoji 去咗第 40,019 位，差 19
+        · 掃 [39_980, 39_985, 39_990] → 分別喺 40,000 / 40,005 / 40,010，差 1
+      兩次個測試都綠，但佢想試嗰件事（切開一隻 surrogate pair）一次都冇發生過。
+
+      要切開，個高位 surrogate 就要**啱啱好**喺第 39,999 位。
+      連 pad±1 一齊試，順便蓋埋「啱啱好貼住條線」嗰兩個位。
     */
-    for (const pad of [39_980, 39_985, 39_990]) {
+    const nameStartsAt = JSON.stringify(t('')).indexOf('""') + 1 // = 20
+    const exact = 40_000 - 1 - nameStartsAt // = 39,979
+
+    for (const pad of [exact - 1, exact, exact + 1]) {
       const name = 'x'.repeat(pad) + '🌀' + 'y'.repeat(10)
       expect((await admin.push(t(name), 'devA')).ok).toBe(true)
       const got = await admin.get(null)
@@ -3539,5 +3564,6 @@ git commit -m "Contract test 打真 deployment；README 講埋即時分享"
 - [ ] 段 script 改完行過 `apps-script/README.md` 嗰份人手清單
 - [ ] **打開觀眾嗰個 GET 嘅 response，確認冇任何 `edit-` 開頭嘅 token**
 - [ ] 開分享 link 嗰陣熄咗 wifi → 見到重試，開返 wifi 就入到（唔係凍死喺「拉緊…」）
+- [ ] **觀眾版熄 wifi → 撳「再試」→ 開返 wifi → 個表要繼續跳**（`refresh` 冇任何自動測試守住，一定要人手行）
 - [ ] 換場（同一張 sheet 擺第二場賽事）行得通，而且會問你確認
 - [ ] 部機個鐘撥快 10 分鐘，入分位仍然用得（時鐘冇撈埋一齊）
