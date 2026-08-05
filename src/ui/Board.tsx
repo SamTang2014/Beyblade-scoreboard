@@ -16,15 +16,29 @@ import type { StandingRow, Tournament } from '../engine/types'
  * 燈熄咗 —— 深色底，因為電視多數擺喺場地暗啲嘅角落，
  * 而主持人部機仍然係淺色（商場光猛）。同一個 token 系統，倒轉一次。
  */
-export function Board({ id }: { id: string }) {
-  const { tournament } = useTournament(id)
+export function Board({
+  id,
+  tournament: given,
+}: {
+  /** 本機模式：由 localStorage 攞。 */
+  id?: string
+  /**
+   * 直播模式：直接餵住份資料入嚟 —— 唔會經 localStorage，
+   * 唔會污染觀眾自己嗰個賽事列表。佢淨係嚟睇場波，唔係要收藏。
+   */
+  tournament?: Tournament
+}) {
+  // ⚠ hook 唔可以喺條件式後面叫，所以無論點都要叫一次。
+  // 直播模式冇 id，餵吉字串 —— `store.get('')` 返 null，冇 side effect。
+  const fromStore = useTournament(id ?? '')
+  const tournament = given ?? fromStore.tournament
 
   useEffect(() => {
     document.body.classList.add('is-dark')
     return () => document.body.classList.remove('is-dark')
   }, [])
 
-  if (tournament === null) return <NotFound />
+  if (tournament === null || tournament === undefined) return <NotFound />
 
   const order = inPlayOrder(tournament.matches)
   const current = order.find((m) => matchWinnerId(m) === null) ?? null

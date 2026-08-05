@@ -1771,3 +1771,12 @@ table {
   font-size: var(--step--1);
   font-variation-settings: 'wdth' 90, 'wght' 650;
 }
+
+/* 直播模式嘅狀態橫額，浮喺底唔阻住個表。 */
+.livebar {
+  position: fixed;
+  left: var(--sp-4);
+  right: var(--sp-4);
+  bottom: var(--sp-4);
+  z-index: 20;
+}

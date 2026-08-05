@@ -7,6 +7,7 @@ import { Table } from './Table'
 import { Matrix } from './Matrix'
 import { Bracket } from './Bracket'
 import { Board } from './Board'
+import { Live } from './Live'
 
 export function App() {
   const route = useRoute()
@@ -23,6 +24,7 @@ export function App() {
       {route.name === 'matrix' && <Matrix key={route.id} id={route.id} />}
       {route.name === 'bracket' && <Bracket key={route.id} id={route.id} />}
       {route.name === 'board' && <Board key={route.id} id={route.id} />}
+      {route.name === 'live' && <Live key={route.payload} payload={route.payload} />}
     </div>
   )
 }
