@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createClient } from '../live/remote'
 import { encodePayload, parseScriptId, scriptUrl } from '../live/payload'
 import { newToken, rememberSheet, savedSheet } from '../live/device'
+import { rememberVersion } from '../live/version'
 import { store } from '../storage/browserStore'
 import { parseTournament } from '../storage/storage'
 import { copyText } from '../lib/clipboard'
@@ -101,6 +102,9 @@ export function ShareSetup({
     }
 
     rememberSheet(scriptId, edit)
+    // 記住 init 出嚟嗰個版本 —— 唔記住嘅話，下一次 poll 會當自己乜都唔知，
+    // 攞成份遠端返嚟蓋走本機（而遠端嗰份就係啱啱推上去嗰個 snapshot）。
+    rememberVersion(tournament.id, r.v)
     update((t) => ({ ...t, live: { scriptId, edit, view } }))
   }
 
@@ -178,6 +182,8 @@ function Recover() {
       ...clean,
       live: { scriptId, edit: token.trim(), view: r.view ?? '' },
     })
+    // 救援路係特登要用遠端嗰份蓋走本機（本機多數已經冇咗），所以照記。
+    rememberVersion(clean.id, r.v)
     location.hash = `#/t/${clean.id}`
   }
 

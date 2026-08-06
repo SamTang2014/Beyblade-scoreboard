@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { decodePayload } from '../live/payload'
 import { createClient } from '../live/remote'
 import { nextDelay, usePoll } from '../live/usePoll'
+import { knownVersion, rememberVersion } from '../live/version'
 import { store } from '../storage/browserStore'
 import { parseTournament } from '../storage/storage'
 import { Board } from './Board'
@@ -105,10 +106,26 @@ export function Live({ payload }: { payload: string }) {
           存嗰陣用返嗰場賽事本身個 id。佢部機已經有同一個 id 就直接蓋過 ——
           遠端嗰份係權威，本機嗰份只係 cache。
         */
-        store.save({
-          ...clean,
-          live: { scriptId: parsed.s, edit: parsed.k, view: r.view ?? '' },
-        })
+        const liveCfg = { scriptId: parsed.s, edit: parsed.k, view: r.view ?? '' }
+        const mine = store.get(clean.id)
+        const seen = knownVersion(clean.id)
+
+        /*
+          ⚠ 唔可以無條件蓋走本機嗰份。
+
+          本機可能有啲仲未推上去嘅嘢（例如：開咗直播、跟住排咗賽程、
+          但俾人搶咗入分位所以推唔到）。呢個時候遠端仲係停喺個舊 snapshot，
+          照單全收就會**抹走成個賽程** —— 個入分版會變返「仲未排賽程」。
+
+          `seen` = 我最後知嘅遠端版本。佢 >= 遠端而家嗰個，就代表遠端
+          冇行前過，本機嗰份至少一樣新 —— 保住本機，淨係補返個 live 設定。
+        */
+        if (mine !== null && seen !== null && seen >= r.v) {
+          store.save({ ...mine, live: liveCfg })
+        } else {
+          store.save({ ...clean, live: liveCfg })
+          rememberVersion(clean.id, r.v)
+        }
         setMode({ kind: 'edit', id: clean.id })
       })
 

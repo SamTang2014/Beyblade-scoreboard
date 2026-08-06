@@ -3,6 +3,7 @@ import { createClient } from './remote'
 import { createQueue } from './queue'
 import { afterClaim, afterPush, canEdit, dueForHeartbeat, HEARTBEAT_MS, type Seat } from './seat'
 import { deviceId } from './device'
+import { forgetVersion, knownVersion, rememberVersion } from './version'
 import { POLL_MS } from './usePoll'
 import type { Tournament } from '../engine/types'
 
@@ -55,7 +56,16 @@ export function useLiveSync(
   const deadRef = useRef(dead)
   deadRef.current = dead
   const lastBeat = useRef(0)
-  const version = useRef<number | null>(null)
+  /*
+    ⚠ 一定要由 storage 讀返，唔可以由 `null` 開始。
+
+    由 null 開始就等於「我乜都唔知」，第一次 poll 會攞成份遠端返嚟然後 adopt ——
+    唔理佢係咪比本機舊。實際出過事：主辦開咗直播（推上去嗰份 `matches: []`，
+    因為「規模」喺「排賽程」上面）→ 排咗賽程 → 俾人搶咗位推唔上去 → reload
+    → poll 攞返個舊 snapshot → 成個賽程冇咗，入分版變返「仲未排賽程」。
+  */
+  const tid = tournament?.id ?? null
+  const version = useRef<number | null>(tid === null ? null : knownVersion(tid))
 
   const client = useMemo(
     () => (scriptId === null || token === null ? null : createClient(scriptId, token)),
@@ -71,6 +81,7 @@ export function useLiveSync(
             if (r.ok) {
               lastBeat.current = Date.now()
               version.current = r.v
+              if (tid !== null) rememberVersion(tid, r.v)
             }
             setOffline(!r.ok && r.err === 'network')
             if (!r.ok && r.err === 'bad-token') setDead(true)
@@ -109,6 +120,14 @@ export function useLiveSync(
   useEffect(() => {
     setDead(false)
   }, [client])
+
+  /*
+    條 link 死咗（張 sheet 換咗場）就唔好再攞住個舊版本號去問 ——
+    嗰個號碼講緊另一場賽事，留住佢只會令下次接返嚟嗰陣諗錯。
+  */
+  useEffect(() => {
+    if (dead && tid !== null) forgetVersion(tid)
+  }, [dead, tid])
 
   /*
     開場先試攞位，**唔 force**。
@@ -170,6 +189,7 @@ export function useLiveSync(
       if (!r.ok && r.err === 'bad-token') setDead(true)
       if (r.ok) {
         version.current = r.v
+        if (tid !== null) rememberVersion(tid, r.v)
         if (r.t !== null) adopt(r.t)
       }
     }

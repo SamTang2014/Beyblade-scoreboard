@@ -131,3 +131,50 @@ describe('adopt 唔可以抹走本機個 live', () => {
     expect(pushed).toHaveLength(0)
   })
 })
+
+/**
+ * 重演一個真出過事嘅情形（淘汰賽入分版變返「仲未排賽程」）。
+ *
+ * 開賽設定嘅次序係：規模 → 加人 → 排賽程。所以自然流程係
+ * 「先揀認真、開始直播、然後先加人排賽程」—— 即係 `init` 推上去嗰份
+ * **`matches: []`**。
+ *
+ * 之後主辦排咗賽程但俾第二部機搶咗入分位（推唔上去），reload 一次，
+ * poll 就會攞返個舊 snapshot 蓋走本機 —— 成個賽程冇咗。
+ */
+describe('遠端嗰份舊過本機就唔可以蓋走', () => {
+  const LIVE = { scriptId: 'S1', edit: 'edit-a', view: 'view-b' }
+  const match = {
+    id: 'b1m1', stage: 'bracket' as const, round: 1, order: 1,
+    aId: 'p1', bId: 'p2', aFrom: null, bFrom: null, rounds: [],
+  }
+  const players = [
+    { id: 'p1', name: '阿明', seat: 0, pool: null },
+    { id: 'p2', name: '阿強', seat: 1, pool: null },
+  ]
+
+  it('adopt 一份冇賽程嘅舊 snapshot，個賽程唔應該消失', async () => {
+    const { store, useTournament } = await load()
+    const made = store.create('淘汰賽')
+
+    // 主辦排咗賽程（本機有 match）
+    const scheduled = { ...made, mode: 'knockout' as const, players, matches: [match], live: LIVE }
+    store.save(scheduled)
+
+    const { result } = renderHook(() => useTournament(made.id))
+    expect(result.current.tournament!.matches).toHaveLength(1)
+
+    // 遠端仲係停喺 init 嗰個 snapshot：有人，冇賽程
+    act(() => adopt!({ ...made, mode: 'knockout', players, matches: [], live: null }))
+
+    /*
+      而家 `adopt` 本身仲係會照收（佢唔知邊份新）—— 真正嘅守衛喺
+      `sync.ts`：poll 攞住「我最後知嘅遠端版本」去問，遠端冇行前過就
+      根本唔會派資料落嚟，所以 `adopt` 唔會俾人叫到。
+
+      呢個測試釘住嘅係：**`live` 一定要保住**。連 `live` 都冇咗嘅話，
+      sync 會靜靜雞死，之後入幾多分都推唔上去，而個介面睇落一切正常。
+    */
+    expect(result.current.tournament!.live).toEqual(LIVE)
+  })
+})
