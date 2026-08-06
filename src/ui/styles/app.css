@@ -1802,3 +1802,34 @@ table {
     display: none;
   }
 }
+
+/* 段 script 嘅原文 + copy 掣。 */
+.codebox {
+  margin-top: var(--sp-2);
+}
+
+.codebox__size {
+  align-self: center;
+  color: var(--ink-faint);
+  font-size: var(--step--2);
+  font-variant-numeric: tabular-nums;
+}
+
+.codebox summary {
+  cursor: pointer;
+  margin-top: var(--sp-2);
+  color: var(--ink-soft);
+  font-size: var(--step--2);
+}
+
+.codebox__pre {
+  max-height: 22rem;
+  margin: var(--sp-2) 0 0;
+  padding: var(--sp-3);
+  overflow: auto;
+  background: var(--floor-sunk);
+  font-size: var(--step--2);
+  line-height: 1.5;
+  /* 唔好自動斷行 —— 斷咗行嘅 code copy 落去會爛。 */
+  white-space: pre;
+}

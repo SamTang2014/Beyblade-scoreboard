@@ -4,7 +4,18 @@ import { encodePayload, parseScriptId, scriptUrl } from '../live/payload'
 import { newToken, rememberSheet, savedSheet } from '../live/device'
 import { store } from '../storage/browserStore'
 import { parseTournament } from '../storage/storage'
+import { copyText } from '../lib/clipboard'
 import type { Tournament } from '../engine/types'
+/*
+  段 script 嘅原文，build 嗰陣讀入嚟做字串。
+
+  **一定要由個真檔案讀，唔可以抄一份落嚟。** 抄咗就會分叉：改咗
+  `apps-script/Code.gs` 但個 app 仲派緊個舊版本，而冇任何嘢會提你。
+
+  代價係 bundle 大咗約 9 KB。值 —— 用 GitHub Pages 開個 app 嘅人根本
+  掂唔到個 repo 入面嘅檔，冇呢個佢就要自己去 GitHub 揾。
+*/
+import CODE from '../../apps-script/Code.gs?raw'
 
 /**
  * 「認真」場嘅設定。
@@ -217,6 +228,45 @@ function Recover() {
   )
 }
 
+/** 段 script 嘅原文 + 一粒 copy 掣。攤開睇得，唔使信我哋。 */
+function CopyCode() {
+  const [state, setState] = useState<'idle' | 'ok' | 'fail'>('idle')
+
+  return (
+    <div className="codebox">
+      <div className="btnrow">
+        <button
+          className="btn btn--tight chamfer-sm"
+          onClick={() => {
+            void copyText(CODE).then((ok) => {
+              setState(ok ? 'ok' : 'fail')
+              if (ok) setTimeout(() => setState('idle'), 2000)
+            })
+          }}
+        >
+          {state === 'ok' ? 'copy 咗 ✓' : 'copy 段 code'}
+        </button>
+        <span className="codebox__size">{Math.round(CODE.length / 1024)} KB</span>
+      </div>
+      {state === 'fail' && (
+        <p className="note note--bad">
+          <span>⚠</span>
+          <span>
+            copy 唔到（plain HTTP 之下瀏覽器唔准）。攤開下面段 code，
+            自己揀晒佢再 copy。
+          </span>
+        </p>
+      )}
+      <details>
+        <summary>攤開睇段 code</summary>
+        <pre className="codebox__pre">
+          <code>{CODE}</code>
+        </pre>
+      </details>
+    </div>
+  )
+}
+
 function SetupSteps({
   url,
   onUrl,
@@ -240,7 +290,8 @@ function SetupSteps({
           </li>
           <li>Extensions → Apps Script</li>
           <li>
-            貼晒 <code>apps-script/Code.gs</code> 落去，蓋走原本嗰個 <code>myFunction</code>
+            蓋走原本嗰個 <code>myFunction</code>，貼段 code 落去：
+            <CopyCode />
           </li>
           <li>
             Deploy → New deployment → 揀 <b>Web app</b>
@@ -307,27 +358,39 @@ function Links({ edit, view }: { edit: string; view: string }) {
 }
 
 function LinkRow({ label, hint, url }: { label: string; hint: string; url: string }) {
-  const [copied, setCopied] = useState(false)
+  const [state, setState] = useState<'idle' | 'ok' | 'fail'>('idle')
+
   return (
     <div className="field">
       <span className="field__label">{label}</span>
       <div className="btnrow">
-        <input className="input chamfer-sm" readOnly value={url} style={{ flex: 1 }} />
+        <input
+          className="input chamfer-sm"
+          readOnly
+          value={url}
+          style={{ flex: 1 }}
+          // copy 唔到嗰陣至少撳一下就揀晒佢。
+          onFocus={(e) => e.currentTarget.select()}
+        />
         <button
           className="btn chamfer-sm"
           onClick={() => {
-            void navigator.clipboard.writeText(url).then(() => {
-              setCopied(true)
-              setTimeout(() => setCopied(false), 1500)
+            void copyText(url).then((ok) => {
+              setState(ok ? 'ok' : 'fail')
+              if (ok) setTimeout(() => setState('idle'), 1500)
             })
           }}
         >
-          {copied ? 'copy 咗' : 'copy'}
+          {state === 'ok' ? 'copy 咗' : 'copy'}
         </button>
       </div>
-      <p className="note">
-        <span>·</span>
-        <span>{hint}</span>
+      <p className={state === 'fail' ? 'note note--bad' : 'note'}>
+        <span>{state === 'fail' ? '⚠' : '·'}</span>
+        <span>
+          {state === 'fail'
+            ? 'copy 唔到（plain HTTP 之下瀏覽器唔准）。撳一下上面條 link 就會揀晒，自己 copy。'
+            : hint}
+        </span>
       </p>
     </div>
   )

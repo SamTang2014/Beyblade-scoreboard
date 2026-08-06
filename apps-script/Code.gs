@@ -4,9 +4,11 @@
  * 呢段嘢跑喺主辦自己嘅 Google 帳戶度（Execute as: Me），所以佢掂得到嗰張
  * 從來冇 share 過嘅 sheet。外面啲人淨係打得到呢段 script，永遠攞唔到張 sheet。
  *
- * ⚠ 呢段嘢冇自動測試 —— vitest 掂唔到 Google 個 runtime。所以寫得薄同笨啲，
- * 凡係諗得複雜嘅嘢都推咗去客戶端嘅 TypeScript。改之前睇 apps-script/README.md
- * 嗰份人手測試清單。
+ * 改之前記住：呢段嘢嘅邏輯有自動測試守住（`src/live/appsScript.test.ts` ——
+ * stub 走 Google 嗰五個 global 再行真嘅 doGet／doPost）。改完行一次。
+ * 測唔到嘅淨係 deploy 同權限，嗰啲喺 apps-script/README.md 嗰份人手清單。
+ *
+ * 仍然寫得薄同笨 —— 凡係諗得複雜嘅嘢都推咗去客戶端嘅 TypeScript。
  */
 
 var SHEET_NAME = 'data'

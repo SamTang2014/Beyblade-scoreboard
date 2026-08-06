@@ -291,7 +291,19 @@ live: { scriptId: string; edit: string; view: string } | null
 3. 撳「開始直播」→ app generate 兩個 token → `init` → 存 `live`
 4. 出兩條 link，各有 copy 掣
 
-段 `Code.gs` 放喺 repo `apps-script/Code.gs`，設定頁有個「複製段 code」掣。
+段 `Code.gs` 放喺 repo `apps-script/Code.gs`，而設定頁**要有一粒「copy 段 code」掣
+同埋攤得開嘅原文** —— 用 GitHub Pages 開個 app 嘅人根本掂唔到個 repo 入面嘅檔，
+冇呢個佢就要自己去 GitHub 揾。
+
+段 code 用 Vite 嘅 `?raw` **由個真檔案讀入**，唔可以喺 UI 度抄一份 —— 抄咗就會
+分叉：改咗 `Code.gs` 但個 app 仲派緊舊版本，而冇任何嘢會提你。代價係 bundle
+大咗約 9 KB。
+
+**Copy 要有 fallback。** `navigator.clipboard` 淨係喺 secure context 先有
+（HTTPS 或者 localhost）。主辦好可能喺 LAN IP（`http://192.168.1.5:5173`）試 ——
+嗰個唔算 secure context，粒掣會靜靜雞失敗而佢以為 copy 咗。所以先試新 API，
+再試 `execCommand('copy')`，仲唔得就叫佢自己揀。兩粒 copy 掣（段 code、兩條 link）
+都要行同一條路。
 
 同一段下面有個「**用返舊嘅 sheet**」：貼 script 網址 + edit token → 拉返成場賽事。
 主辦部機冇咗嘅時候行呢條 —— 兩個 token 就寫喺張 sheet B1／B2，佢開自己個 Drive
