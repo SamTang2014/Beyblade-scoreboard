@@ -1765,11 +1765,55 @@ table {
   font-size: 0.9em;
 }
 
+/*
+ * 救援入口。
+ *
+ * 呢個係「部機爆咗」嗰刻要搵到嘅嘢 —— 嗰陣人係慌嘅，唔應該要瞇埋眼揾。
+ * 所以做到似一粒掣咁大，唔係一行腳註。平時收埋，唔會阻住開賽事。
+ */
+.recover {
+  margin-top: var(--sp-4);
+  border: 1px solid var(--edge);
+  background: var(--slab);
+}
+
 .recover summary {
   cursor: pointer;
+  padding: var(--sp-4);
+  color: var(--ink);
+  font-size: var(--step-0);
+  font-variation-settings: 'wdth' 95, 'wght' 700;
+  list-style: none;
+}
+
+/* 自己畫個箭嘴，唔用瀏覽器預設嗰粒（三個 engine 三個樣）。 */
+.recover summary::-webkit-details-marker {
+  display: none;
+}
+
+.recover summary::before {
+  content: '▸';
+  display: inline-block;
+  width: 1.2em;
   color: var(--ink-soft);
-  font-size: var(--step--1);
-  font-variation-settings: 'wdth' 90, 'wght' 650;
+  transition: transform 0.12s ease;
+}
+
+.recover[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.recover summary:hover {
+  background: var(--floor-sunk);
+}
+
+/* 攤開之後啲內容縮返入去，同個標題分得開。 */
+.recover > :not(summary) {
+  margin-inline: var(--sp-4);
+}
+
+.recover > :last-child {
+  margin-bottom: var(--sp-4);
 }
 
 /* 直播模式嘅狀態橫額，浮喺底唔阻住個表。 */
