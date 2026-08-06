@@ -7,6 +7,7 @@ import { totalRounds } from '../engine/schedule'
 import { completedCount } from '../engine/standings'
 import type { Player } from '../engine/types'
 import type { TournamentSummary as Summary } from '../storage/storage'
+import { Recover } from './ShareSetup'
 
 /** 主頁個轉盤要有嘢轉先睇得出，所以擺一組樣板名。 */
 const DEMO: Player[] = ['阿明', '阿強', '阿華', '小美', '阿聰'].map((name, seat) => ({
@@ -101,6 +102,13 @@ export function Home() {
         </p>
       )}
 
+      {/*
+        救援入口一定要喺主頁。
+
+        部機爆咗嗰陣，新部機一場賽事都冇 —— 如果埋咗喺「某一場賽事嘅設定頁」，
+        等於冇路入去：要先開一場垃圾賽事、入設定、揀認真，先撳到，
+        而且救完仲會留低嗰場空賽事。
+      */}
       <section className="stack" style={{ marginTop: 'var(--sp-6)' }}>
         <div className="btnrow" style={{ alignItems: 'baseline' }}>
           <h2 className="u-eyebrow" style={{ flex: 1 }}>
@@ -129,6 +137,7 @@ export function Home() {
             ))}
           </div>
         )}
+        <Recover />
       </section>
     </div>
   )

@@ -109,23 +109,26 @@ export function ShareSetup({
   }
 
   return live === null ? (
-    <>
-      <SetupSteps url={url} onUrl={setUrl} busy={busy} err={err} onStart={() => void start()} />
-      <Recover />
-    </>
+    <SetupSteps url={url} onUrl={setUrl} busy={busy} err={err} onStart={() => void start()} />
   ) : (
     <Links edit={linkFor(live.scriptId, live.edit)} view={linkFor(live.scriptId, live.view)} />
   )
 }
 
 /**
- * 主辦部機冇咗嘅救援路。
+ * 部機冇咗嘅救援路。
  *
  * 兩個 token 就寫喺張 sheet B1／B2，而張 sheet 喺主辦自己個 Drive ——
  * 所以主辦冇可能被永久鎖喺外面。呢個係「token 擺喺張 sheet 度」呢個決定
  * 送嘅副產品。
+ *
+ * ⚠ **一定要擺喺主頁**，唔可以淨係埋喺開賽設定入面。
+ *
+ * 部機爆咗嗰陣，新部機**一場賽事都冇** —— 埋喺「某一場賽事嘅設定頁」等於
+ * 冇路入去：你要先開一場垃圾賽事，入設定，揀認真，先撳到 —— 而救完仲會
+ * 留低嗰場空賽事。救援入口一定要喺「乜都冇」嗰個畫面度見到。
  */
-function Recover() {
+export function Recover() {
   const [url, setUrl] = useState('')
   const [token, setToken] = useState('')
   const [busy, setBusy] = useState(false)
@@ -189,12 +192,19 @@ function Recover() {
 
   return (
     <details className="recover">
-      <summary>部機爆咗？用返舊嘅 sheet</summary>
+      <summary>換咗機／部機爆咗？由你張 sheet 接返場賽事</summary>
       <p className="note">
         <span>·</span>
         <span>
-          開返你張 sheet（喺你自己個 Drive 度），B1 格就係 edit token。
-          連同段 script 條網址一齊貼落嚟，成場賽事就接得返。
+          「認真」場嘅資料同時擺喺你自己張 Google Sheet 度，所以部機冇咗都救得返。
+          開返張 sheet（喺你自己個 Drive），<b>B1 格</b>就係 edit token ——
+          連同段 script 條網址一齊貼落嚟。
+        </span>
+      </p>
+      <p className="note">
+        <span>·</span>
+        <span>
+          有保住條<b>入分 link</b> 嘅話更快 —— 直接撳條 link 就接得返，唔使抄 token。
         </span>
       </p>
       <div className="field">
