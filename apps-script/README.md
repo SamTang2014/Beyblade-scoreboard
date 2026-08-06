@@ -8,14 +8,36 @@
 1. 開一張新 Google Sheet。**唔好 share 俾任何人** —— 個 app 唔使佢 share 都讀到
 2. Extensions → Apps Script
 3. 貼晒 `Code.gs` 落去，蓋走原本嗰個 `myFunction`
-4. Deploy → New deployment → 類型揀 **Web app**
-5. Execute as：**Me**
-6. Who has access：**Anyone**
-7. Deploy → 授權 → copy 條網址（`https://script.google.com/macros/s/…/exec`）
-8. 貼返落個 app 嘅開賽設定（揀咗「認真」場先會出）
+4. **先授權一次**：上面個下拉揀 `doGet` → 撳 **Run** → 照住佢授權
+5. Deploy → New deployment → 類型揀 **Web app**
+6. Execute as：**Me**
+7. Who has access：**Anyone**
+8. Deploy → copy 條網址（`https://script.google.com/macros/s/…/exec`）
+9. 貼返落個 app 嘅開賽設定（揀咗「認真」場先會出）
 
-**第 5 同第 6 步一定要行啱。** Execute as 揀錯，段 script 掂唔到你張 sheet；
-Who has access 揀錯，觀眾撳條 link 會俾佢叫登入。
+### 第 4 步唔可以跳
+
+直接去 Deploy 嘅話，好大機會彈：
+
+```
+存取權遭封鎖：授權錯誤
+The OAuth client is not fully created yet.
+錯誤代碼 401: invalid_client
+```
+
+個 OAuth client 要行過一次授權流程先算「create 完」，而 Deploy 嗰條路有時觸發唔到。
+喺編輯器度 Run 一次就會逼佢行。
+
+兩樣要有心理準備：
+
+- **「未經驗證」嗰版**：撳 **Advanced** → **Go to（你個 project 名）(unsafe)**。
+  段 code 係你自己貼落去嘅，冇第三者攞到你啲嘢。
+- **Run 完會報錯**（`e is undefined` 之類）：`doGet` 要有個 HTTP 請求先行得順，
+  手動 Run 冇。**唔緊要** —— 授權嗰步已經行咗，跟住去 Deploy 就得。
+
+**第 6 同第 7 步一定要行啱。** Execute as 揀錯，段 script 掂唔到你張 sheet；
+Who has access 揀錯，觀眾撳條 link 會俾佢叫登入（要揀 `Anyone`，
+唔係 `Anyone with Google account`）。
 
 ## 改完之後
 

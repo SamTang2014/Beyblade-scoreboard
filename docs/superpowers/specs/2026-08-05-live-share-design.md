@@ -285,8 +285,14 @@ live: { scriptId: string; edit: string; view: string } | null
 揀咗「認真」先至展開：
 
 1. 逐步指引：開一張新 sheet（**唔好 share 俾任何人**）→ Extensions → Apps Script
-   → 貼段 code → Deploy → Web app → Execute as **Me** → Who has access **Anyone**
-   → copy 條網址
+   → 貼段 code → **喺編輯器 Run 一次授權** → Deploy → Web app
+   → Execute as **Me** → Who has access **Anyone** → copy 條網址
+
+   **「Run 一次授權」嗰步唔可以省。** 實測過：直接 Deploy 會彈
+   `The OAuth client is not fully created yet（401 invalid_client）`。
+   個 OAuth client 要行過一次授權流程先算 create 完，而 Deploy 嗰條路
+   有時觸發唔到。呢一步要連埋兩樣心理準備一齊寫：會見到「未經驗證」
+   （撳 Advanced 過），同埋 Run 完會報 `e is undefined`（正常，唔使理）。
 2. 貼條網址入去（之前貼過會自動填返）
 3. 撳「開始直播」→ app generate 兩個 token → `init` → 存 `live`
 4. 出兩條 link，各有 copy 掣

@@ -294,6 +294,20 @@ function SetupSteps({
             <CopyCode />
           </li>
           <li>
+            <b>先授權一次</b>：上面個下拉揀 <code>doGet</code> → 撳 <b>Run</b> →
+            照住佢授權。見到「未經驗證」就撳 <b>Advanced</b> →{' '}
+            <b>Go to（你個 project 名）(unsafe)</b> —— 段 code 係你自己貼落去嘅，
+            冇第三者。
+            <p className="note">
+              <span>·</span>
+              <span>
+                會報一句 <code>e is undefined</code> 之類嘅錯 —— <b>唔緊要</b>，
+                授權嗰步已經行咗。跳過呢一步直接 Deploy 嘅話，好大機會彈
+                「The OAuth client is not fully created yet（401 invalid_client）」。
+              </span>
+            </p>
+          </li>
+          <li>
             Deploy → New deployment → 揀 <b>Web app</b>
           </li>
           <li>
