@@ -422,3 +422,16 @@ describe('同分點拆嘅選項', () => {
   })
 })
 
+
+describe('剝走直播之後嘅相容性', () => {
+  it('舊備份入面有 live 都讀得返，個 field 靜靜雞唔見咗', () => {
+    const t = parseTournament({
+      id: 'old', name: '舊賽事', createdAt: 0, updatedAt: 0,
+      mode: 'roundRobin', headToHead: true, players: [], matches: [],
+      live: { scriptId: 'S1', edit: 'edit-a', view: 'view-b' },
+    })
+    expect(t.name).toBe('舊賽事')
+    expect(t.headToHead).toBe(true)
+    expect('live' in t).toBe(false)
+  })
+})
