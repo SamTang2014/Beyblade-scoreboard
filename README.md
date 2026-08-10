@@ -18,7 +18,7 @@ npm run dev
 
 ## 部署
 
-**已經自動化咗。** `git push` 上 `main` → GitHub Actions typecheck、跑 422 個測試、build、
+**已經自動化咗。** `git push` 上 `main` → GitHub Actions typecheck、跑 423 個測試、build、
 部署去 GitHub Pages，大約一分鐘。**測試唔過就唔會部署** —— 寧願個網站停喺舊版本，
 都好過賽事當日推咗個爛嘅上去。
 
@@ -42,7 +42,7 @@ npm run build && npm run preview
 
 | 指令 | 做咩 |
 |---|---|
-| `npm test` | 跑 422 個測試 |
+| `npm test` | 跑 423 個測試 |
 | `npm run test:watch` | 邊改邊跑 |
 | `npm run typecheck` | 淨係 typecheck |
 
