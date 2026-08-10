@@ -10,7 +10,7 @@ function subscribeSystem(fn: () => void): () => void {
 }
 
 /**
- * 場地燈光接落 DOM。
+ * 深淺色接落 DOM。
  *
  * ⚠ **一定要喺 App 度叫一次**，唔可以淨係喺個 picker 度叫。個 picker 只喺主頁
  * 出現，如果得佢叫，你企喺入分版嗰陣就冇人聽住部機嘅日夜轉 —— 揀咗「跟部機」

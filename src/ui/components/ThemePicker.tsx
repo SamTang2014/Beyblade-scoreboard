@@ -2,20 +2,20 @@ import { useTheme } from '../../lib/useTheme'
 import type { ThemePref } from '../../lib/theme'
 
 /**
- * 場地燈光。
+ * 深淺色。
  *
- * 唔叫「主題」、唔用月光太陽圖示 —— 呢個 app 兩個色調有實際理由：
- * 比賽通常喺商場、模型店呢啲光猛地方，主持人攞住部電話企喺度撳；
- * 夜場、或者部機擺喺暗角落就要熄燈。所以標籤講嘅係場地，唔係顏色。
+ * 個標籤用返一般人講開嘅字眼 —— 之前叫「場地燈光／光猛／熄燈」，
+ * 概念上啱（呢個 app 兩個色調本來就係為咗場地光暗），但要人諗多一步先明。
+ * 設定就係設定，唔使考人。
  *
- * 粒方格用返擂台嗰條斜線劈開光暗兩邊 —— 同一個結構，換咗個用途。
- * 「跟部機」半光半暗，因為佢真係兩樣都可能。
+ * 唯一保留嘅係粒方格：用返擂台嗰條斜線劈開光暗兩邊，「跟部機」半光半暗，
+ * 因為佢真係兩樣都可能 —— 呢個唔使解釋都睇得明。
  */
 
 const OPTIONS: { pref: ThemePref; label: string }[] = [
   { pref: 'auto', label: '跟部機' },
-  { pref: 'light', label: '光猛' },
-  { pref: 'dark', label: '熄燈' },
+  { pref: 'light', label: '淺色' },
+  { pref: 'dark', label: '深色' },
 ]
 
 export function ThemePicker() {
@@ -23,7 +23,7 @@ export function ThemePicker() {
 
   return (
     <div className="field">
-      <span className="field__label">場地燈光</span>
+      <span className="field__label">深淺色</span>
       <div className="chips">
         {OPTIONS.map((o) => (
           <button
@@ -40,7 +40,7 @@ export function ThemePicker() {
       <p className="note">
         <span>·</span>
         <span>
-          「跟部機」會跟你部機嘅日夜設定自動轉。「電視」嗰版永遠熄燈 ——
+          「跟部機」會跟你部機嘅日夜設定自動轉。「電視」嗰版永遠深色 ——
           嗰度係俾人隔遠望嘅。
         </span>
       </p>
