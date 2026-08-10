@@ -1,4 +1,5 @@
 import { useRoute } from '../lib/router'
+import { useTheme } from '../lib/useTheme'
 import { Home } from './Home'
 import { Setup } from './Setup'
 import { Console } from './Console'
@@ -10,6 +11,9 @@ import { Board } from './Board'
 
 export function App() {
   const route = useRoute()
+  // 喺最頂叫一次：落 class、聽住部機嘅日夜轉。個 picker 淨係喺主頁出現，
+  // 得佢叫嘅話，你企喺入分版天黑咗都唔會跟。
+  useTheme()
 
   return (
     <div className="app">

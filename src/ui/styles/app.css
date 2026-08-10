@@ -239,9 +239,9 @@ table {
 }
 
 .btn--primary {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--floor);
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .btn--big {
@@ -912,15 +912,15 @@ table {
   width: 100%;
   min-height: 4.25rem;
   padding: var(--sp-3) var(--sp-4);
-  background: var(--ink);
-  color: var(--slab);
+  background: var(--accent);
+  color: var(--on-accent);
   transition: background-color 0.12s ease, color 0.12s ease, transform 0.08s ease;
 }
 
 /* 唔揀藍定紅 —— 揀邊邊都似偏幫咗一邊。金色係場上「注意」嗰個色。 */
 .goshot:hover {
-  background: var(--gold);
-  color: var(--ink);
+  background: var(--accent-hot);
+  color: var(--on-accent-hot);
 }
 
 .goshot:active {
@@ -1742,4 +1742,41 @@ table {
   grid-column: 1 / -1;
   text-align: center;
   color: var(--gold-text);
+}
+
+/* ── 場地燈光 ───────────────────────────────────────────── */
+
+.chip--lit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+/*
+ * 粒方格照住擂台嗰條斜線劈開光暗兩邊 —— 同一個結構，換咗個用途。
+ *
+ * 啲色特登寫死，唔用 var()：呢度要 show 嘅係「揀咗之後個場地係咩色」，
+ * 唔係「而家係咩色」。用 var() 就會三格一齊變，睇唔到分別。
+ * 數值同 tokens.css 嘅 --floor 對得返，改嗰邊記得改埋呢度。
+ */
+.lit {
+  width: 1.05em;
+  height: 1.05em;
+  flex: none;
+  border: 1px solid currentColor;
+  /* 同 .chamfer-sm 一樣嘅切角，細粒版。 */
+  clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 3px 100%, 0 calc(100% - 3px));
+}
+
+.lit--light {
+  background: #e3e5e9;
+}
+
+.lit--dark {
+  background: #0c0d12;
+}
+
+/* 兩樣都可能，所以兩樣都 show。條斜線同擂台一樣，向左傾。 */
+.lit--auto {
+  background: linear-gradient(108deg, #e3e5e9 0 48%, #0c0d12 48% 100%);
 }

@@ -8,6 +8,27 @@
     <title>陀螺計分板</title>
   </head>
   <body>
+    <script>
+      /*
+        主題喺第一次畫之前落，唔係深色用家會見到白閃一下。
+
+        呢段嘢特登唔 import module —— module 要等 JS bundle 落齊先跑，
+        嗰陣已經畫咗一次白色。所以要 inline，同埋要喺 <div id="root"> 之前。
+        邏輯同 src/lib/theme.ts 嘅 readPref + resolveTheme 一樣，改就兩邊一齊改。
+      */
+      try {
+        var p = localStorage.getItem('beyblade-scoreboard/theme')
+        var dark =
+          p === 'dark' ||
+          (p !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
+        if (dark) {
+          document.documentElement.classList.add('is-dark')
+          document.querySelector('meta[name="theme-color"]').content = '#0c0d12'
+        }
+      } catch (e) {
+        /* 無痕視窗 —— 照用淺色。 */
+      }
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
