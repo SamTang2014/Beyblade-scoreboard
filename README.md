@@ -18,7 +18,7 @@ npm run dev
 
 ## 部署
 
-**已經自動化咗。** `git push` 上 `main` → GitHub Actions typecheck、跑 531 個測試、build、
+**已經自動化咗。** `git push` 上 `main` → GitHub Actions typecheck、跑 422 個測試、build、
 部署去 GitHub Pages，大約一分鐘。**測試唔過就唔會部署** —— 寧願個網站停喺舊版本，
 都好過賽事當日推咗個爛嘅上去。
 
@@ -38,40 +38,11 @@ npm run build && npm run preview
 `dist/` 亦都 copy 得去任何一個 web server 嘅任何一個目錄就用得 —— 用咗相對路徑 base
 同 hash routing，擺喺子目錄（例如 `/tools/beyblade/`）都跑得，實測過。
 
-## 即時分享（「認真」場）
-
-開賽設定度揀「認真」，畀一張**你自己嘅 private Google Sheet**，就派得出兩條 link：
-
-| Link | 做到咩 |
-|---|---|
-| 入分 link | 入分、改設定。同一時間得一部機入到 |
-| 觀眾 link | 淨係睇，實時跳 |
-
-揀「玩下」就乜都唔使畀，介面上完全見唔到呢個功能 —— 冇多咗個 tab、冇多咗一版嘢。
-
-**張 sheet 由頭到尾冇 share 過。** 段 Apps Script 以主辦身份執行，所以掂得到；
-外面啲人淨係打得到段 script，而段 script 睇 token 決定俾唔俾你做嘢。
-
-裝法睇 `apps-script/README.md`。設定一次 3–5 分鐘，之後每場新賽事貼返同一條網址就得。
-
-**點解唔用 Firebase：** 咁樣每一個用呢個 app 嘅人都食同一個 project 嘅額度，
-要人管 dashboard、管升 plan，而且人哋啲資料喺第三者手。呢個方案每個主辦用自己
-Google 帳戶嘅額度，個 app 仍然係一堆靜態檔。
-
-段 script 改完之後，除咗 `npm test`（入面有 27 個測試 stub 走 Google 環境行真嘅
-`doGet`／`doPost`），仲要打真 deployment 驗一次：
-
-```
-LIVE_SCRIPT_ID=AKfycb… npm run test:live
-```
-
-冇設個 env var 就會 skip，所以 `npm test` 唔會打真 server。
-
 ## 其他指令
 
 | 指令 | 做咩 |
 |---|---|
-| `npm test` | 跑 531 個測試 |
+| `npm test` | 跑 422 個測試 |
 | `npm run test:watch` | 邊改邊跑 |
 | `npm run typecheck` | 淨係 typecheck |
 

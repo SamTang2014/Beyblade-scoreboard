@@ -80,16 +80,6 @@ export interface Tournament {
    * default false。舊檔冇呢個 field 一樣當 false。
    */
   headToHead: boolean
-  /**
-   * 開咗直播先有。null = 「玩下」場，冇分享。
-   *
-   * `scriptId` 係 Apps Script deployment id；兩個 token 係呢個 app 自己
-   * generate、init 嗰陣寫咗落張 sheet 度。段 script 靠 token 判你係邊個。
-   *
-   * ⚠ 呢舊嘢**永遠唔可以推上張 sheet** —— 入面有兩個 token，推咗就會經
-   * `doGet` 交俾觀眾。推之前一定要 `{ ...t, live: null }`。
-   */
-  live: { scriptId: string; edit: string; view: string } | null
   players: Player[]
   matches: Match[]
 }

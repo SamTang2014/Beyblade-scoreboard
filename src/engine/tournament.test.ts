@@ -43,7 +43,6 @@ function tournament(
     poolCount,
     advancePerPool,
     headToHead: false,
-    live: null,
     players: players(n),
     matches: [],
   }

@@ -37,14 +37,11 @@ export function TopBar({
   name,
   current,
   mode = 'roundRobin',
-  sync,
 }: {
   id: string
   name: string
   current: Route['name']
   mode?: TournamentMode
-  /** 開咗直播（「認真」場）先有。玩下場係 undefined，粒點都唔會出。 */
-  sync?: { label: string; bad: boolean } | undefined
 }) {
   return (
     <header className="topbar">
@@ -53,12 +50,6 @@ export function TopBar({
       </a>
       <h1 className="topbar__name">{name}</h1>
       <div className="topbar__spacer" />
-      {sync !== undefined && (
-        <span className={`syncdot${sync.bad ? ' syncdot--bad' : ''}`} title={sync.label}>
-          <span aria-hidden="true">●</span>
-          <span className="syncdot__text">{sync.label}</span>
-        </span>
-      )}
       <nav className="topbar__nav" aria-label="賽事畫面">
         {tabsFor(mode).map((tab) => (
           <a
