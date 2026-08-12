@@ -1,4 +1,4 @@
-import { bladeIdentity, type Combo, type Team } from './team'
+import { assistLabel, bladeIdentity, type Combo, type Team } from './team'
 
 /**
  * 出張分享卡（PNG）。
@@ -57,7 +57,7 @@ function drawContain(
 
 function comboLine(c: Combo): string {
   const bits = [c.ratchet?.name ?? '？', c.bit?.name ?? '？']
-  if (c.assist !== null) bits.push(`輔助 ${c.assist.name}`)
+  if (c.assist !== null) bits.push(assistLabel(c.assist.name))
   return bits.join('　·　')
 }
 

@@ -72,6 +72,16 @@ describe('teamText', () => {
       '《爆旋小隊》\n格式：3on3\n① 鮫鯊狂鱗 UX-15-01｜4-50｜UF\n② 天馬爆擊 CX-07｜9-70｜T｜輔助 W\n③ 魔導神杖 UX-03｜5-70｜DB\n——用「陀螺計分板」零件圖鑑砌\nhttps://samtang2014.github.io/Beyblade-scoreboard/',
     )
   })
+  it('輔助個名本身叫「輔助A」嗰陣，唔會出「輔助 輔助A」', () => {
+    const t = emptyTeam(3)
+    for (const c of t.combos) {
+      c.blade = blade('X', '乜刃'); c.ratchet = part('1-60', 'ratchet'); c.bit = part('R', 'bit')
+    }
+    t.combos[0]!.assist = part('輔助A', 'assist')
+    expect(teamText(t)).toContain('｜輔助A')
+    expect(teamText(t)).not.toContain('輔助 輔助A')
+  })
+
   it('冇隊名就冇《》行；4 隻出「格式：4隻禁1」同 ④', () => {
     const t = emptyTeam(4)
     for (const c of t.combos) {

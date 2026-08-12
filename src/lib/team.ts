@@ -97,6 +97,14 @@ const NUMERALS = ['①', '②', '③', '④']
 const SITE = 'https://samtang2014.github.io/Beyblade-scoreboard/'
 
 /**
+ * 出俾人睇嘅輔助戰刃寫法。張 sheet 啲輔助本身個名已經係「輔助A」「輔助B」——
+ * 硬加個 label 就會變「輔助 輔助A」。個名自己講得明就唔使我哋再講一次。
+ */
+export function assistLabel(name: string): string {
+  return name.startsWith('輔助') ? name : `輔助 ${name}`
+}
+
+/**
  * 純文字版嘅隊伍，俾人 copy 落 WhatsApp／Discord 貼。
  *
  * 格式係釘死嘅（測試對全文）—— 呢串嘢會俾人 copy 嚟 copy 去，
@@ -114,7 +122,7 @@ export function teamText(team: Team): string {
       c.ratchet?.name ?? '？',
       c.bit?.name ?? '？',
     ]
-    if (c.assist !== null) parts.push(`輔助 ${c.assist.name}`)
+    if (c.assist !== null) parts.push(assistLabel(c.assist.name))
     lines.push(parts.join('｜'))
   }
 
