@@ -66,7 +66,7 @@ const KIND_LABEL: Record<PartRow['kind'], string> = {
 /** 手上呢份資料幾舊。同日拉嘅唔講「0 日前」—— 讀落似壞咗。 */
 function ageText(at: number): string {
   const days = Math.floor((Date.now() - at) / 86_400_000)
-  return days <= 0 ? '今日' : `${days} 日前`
+  return days <= 0 ? '用緊今日攞落嚟嗰份。' : `用緊 ${days} 日前攞落嚟嗰份。`
 }
 
 export function Parts({ id }: { id: string }) {
@@ -143,7 +143,7 @@ export function Parts({ id }: { id: string }) {
         {state === 'stale' && data !== null && (
           <p className="note">
             <span>·</span>
-            <span>而家拉唔到最新資料，用緊{ageText(data.at)}攞落嚟嗰份。</span>
+            <span>而家拉唔到最新資料，{ageText(data.at)}</span>
           </p>
         )}
 
