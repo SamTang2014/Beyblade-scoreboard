@@ -4,7 +4,7 @@ import type { TournamentMode } from '../../engine/types'
 
 type TabName = Extract<
   Route['name'],
-  'console' | 'schedule' | 'table' | 'matrix' | 'bracket' | 'board'
+  'console' | 'schedule' | 'table' | 'matrix' | 'bracket' | 'board' | 'parts'
 >
 
 const TABS: { name: TabName; label: string }[] = [
@@ -15,6 +15,7 @@ const TABS: { name: TabName; label: string }[] = [
   { name: 'bracket', label: '籤表' },
   // 唔用「投屏」—— 嗰個係大陸講法，同成個介面嘅廣東話口語唔夾。
   { name: 'board', label: '電視' },
+  { name: 'parts', label: '零件' },
 ]
 
 /**
@@ -28,6 +29,8 @@ function tabsFor(mode: TournamentMode): { name: TabName; label: string }[] {
     // 「循環 + 淘汰」喺籤表未砌之前都要見到呢個 tab ——
     // 唔係用戶根本冇路入去撳「砌籤表」。
     if (tab.name === 'bracket') return mode !== 'roundRobin'
+    // 「零件」查嘅係零件資料庫，同賽制無關 —— 邊個模式都要見到。
+    if (tab.name === 'parts') return true
     if (mode !== 'knockout') return true
     return tab.name === 'console' || tab.name === 'board'
   })

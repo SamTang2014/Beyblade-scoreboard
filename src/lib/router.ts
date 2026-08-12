@@ -15,14 +15,19 @@ export type Route =
   | { name: 'matrix'; id: string }
   | { name: 'bracket'; id: string }
   | { name: 'board'; id: string }
+  | { name: 'parts'; id: string }
 
-const SUB: Record<string, 'setup' | 'schedule' | 'table' | 'matrix' | 'bracket' | 'board'> = {
+const SUB: Record<
+  string,
+  'setup' | 'schedule' | 'table' | 'matrix' | 'bracket' | 'board' | 'parts'
+> = {
   setup: 'setup',
   schedule: 'schedule',
   table: 'table',
   matrix: 'matrix',
   bracket: 'bracket',
   board: 'board',
+  parts: 'parts',
 }
 
 export function parseHash(hash: string): Route {

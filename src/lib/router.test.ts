@@ -10,7 +10,9 @@ describe('route 解析', () => {
   })
 
   it('其他 tab', () => {
-    for (const sub of ['setup', 'schedule', 'table', 'matrix', 'bracket', 'board'] as const) {
+    for (const sub of [
+      'setup', 'schedule', 'table', 'matrix', 'bracket', 'board', 'parts',
+    ] as const) {
       expect(parseHash(`#/t/abc/${sub}`)).toEqual({ name: sub, id: 'abc' })
     }
   })

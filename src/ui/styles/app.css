@@ -1626,6 +1626,124 @@ table {
   opacity: 1;
 }
 
+/* ── 零件版 ─────────────────────────────────────────────── */
+
+.pfilters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.pgrid {
+  display: grid;
+  gap: var(--sp-2);
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  /* 卡撳開之後高咗，唔對頂就會拉高成行。 */
+  align-items: start;
+}
+
+.pcard {
+  border: 1px solid var(--edge);
+  background: var(--slab);
+}
+
+.pcard__main {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+}
+
+button.pcard__main:hover {
+  background: var(--floor-sunk);
+}
+
+/*
+ * 圖格尺寸釘死：成個資料庫四百幾張圖，全部 lazy load，唔霸定位就會
+ * 逐張 load 完撐開一次，你撳緊嗰張卡即刻彈走。
+ */
+.pcard__shot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  background: var(--floor-sunk);
+}
+
+.pcard__shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.pcard__body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.pcard__name {
+  overflow: hidden;
+  font-variation-settings: 'wdth' 100, 'wght' 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pcard__meta {
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+}
+
+/* 階級係呢版最想一眼掃到嘅嘢，所以用返數字嗰種特闊重身。 */
+.pcard__tier {
+  flex: none;
+  min-width: 2.5rem;
+  padding: var(--sp-1) var(--sp-2);
+  background: var(--floor-sunk);
+  font-size: var(--step--1);
+  font-variation-settings: 'wdth' 90, 'wght' 800;
+  text-align: center;
+}
+
+.pcard__more {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-top: 1px solid var(--line);
+  font-size: var(--step--1);
+}
+
+.pcard__spec {
+  display: flex;
+  gap: var(--sp-3);
+}
+
+.pcard__spec--combo {
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.pcard__k {
+  flex: none;
+  min-width: 6rem;
+  color: var(--ink-soft);
+  font-variation-settings: 'wdth' 80, 'wght' 700;
+}
+
+/* sheet 度個建議配置本身分咗行寫（正常配置一行、冠軍配置一行），要保留。 */
+.pcard__combo {
+  white-space: pre-wrap;
+}
+
+.pcard__blank {
+  color: var(--ink-faint);
+}
+
 /* ── 動畫 ───────────────────────────────────────────────── */
 
 @keyframes pop {
