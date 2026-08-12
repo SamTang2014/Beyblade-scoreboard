@@ -175,6 +175,9 @@ table {
 }
 
 .topbar__name {
+  /* 逼到就縮到剩返幾個字加「…」—— 賽事名係最讓得嘅嘢。 */
+  flex: 0 1 auto;
+  min-width: 2.5rem;
   overflow: hidden;
   font-variation-settings: 'wdth' 100, 'wght' 700;
   font-size: var(--step-0);
@@ -186,9 +189,26 @@ table {
   flex: 1;
 }
 
+/*
+ * 橫向捲係最後防線。正路情況靠上面嗰個 40rem 摺行斷點就夠 ——
+ * 但如果有人開咗大字級、或者將來加多個 tab，至少啲嘢捲得到，
+ * 唔會好似之前咁俾人切走咗又搵唔返。
+ */
 .topbar__nav {
   display: flex;
   gap: var(--sp-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.topbar__nav::-webkit-scrollbar {
+  display: none;
+}
+
+/* 唔准縮 —— 縮咗個字會迫到一嚿。 */
+.navlink {
+  flex: none;
 }
 
 .navlink {
@@ -1632,17 +1652,17 @@ table {
   }
 }
 
-/* ── 窄螢幕 ─────────────────────────────────────────────── */
+/* ── 頂欄摺行 ───────────────────────────────────────────── */
 
-@media (max-width: 30rem) {
-  :root {
-    --sp-4: 0.75rem;
-    --sp-5: 1rem;
-    --slant: 1rem;
-  }
-
-  /* 手機闊度容納唔到「名 + 五個掣」，硬塞落去個名會截到剩返兩個字。
-     索性俾個名霸一行，五個掣落第二行攤開，順便撳得舒服啲。 */
+/*
+ * 容納唔到「名 + 六個掣」就俾個名霸一行，啲掣落第二行攤開，
+ * 順便撳得舒服啲。
+ *
+ * 斷點係 40rem 唔係 30rem：實測「大循環 + 淘汰」有六個 tab，
+ * 500px 同 560px 都會切走最後一個 —— 而且係切走咗又捲唔到，
+ * 即係嗰版失蹤。640px 先至真係放得落。
+ */
+@media (max-width: 40rem) {
   .topbar {
     flex-wrap: wrap;
     gap: var(--sp-2);
@@ -1654,6 +1674,16 @@ table {
     width: 100%;
     justify-content: space-between;
     border-top: 1px solid var(--line);
+  }
+}
+
+/* ── 窄螢幕 ─────────────────────────────────────────────── */
+
+@media (max-width: 30rem) {
+  :root {
+    --sp-4: 0.75rem;
+    --sp-5: 1rem;
+    --slant: 1rem;
   }
 
   .navlink {
@@ -1779,4 +1809,32 @@ table {
 /* 兩樣都可能，所以兩樣都 show。條斜線同擂台一樣，向左傾。 */
 .lit--auto {
   background: linear-gradient(108deg, #e3e5e9 0 48%, #0c0d12 48% 100%);
+}
+
+/*
+ * 頂欄嗰粒深淺色掣。
+ *
+ * 做到啱啱好夠手指撳（44px 觸控區）但視覺上細粒 —— 頂欄已經有
+ * 返回、賽事名同六個 tab，多一樣嘢唔可以搶位。
+ */
+.themebtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-inline: calc(var(--sp-4) * -0.5);
+  border-radius: 2px;
+  color: var(--ink-soft);
+}
+
+.themebtn:hover {
+  background: var(--floor-sunk);
+  color: var(--ink);
+}
+
+.themebtn .lit {
+  width: 1rem;
+  height: 1rem;
 }

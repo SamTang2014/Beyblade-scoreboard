@@ -7,7 +7,7 @@ import { totalRounds } from '../engine/schedule'
 import { completedCount } from '../engine/standings'
 import type { Player } from '../engine/types'
 import type { TournamentSummary as Summary } from '../storage/storage'
-import { ThemePicker } from './components/ThemePicker'
+import { ThemePicker } from './components/Theme'
 
 /** 主頁個轉盤要有嘢轉先睇得出，所以擺一組樣板名。 */
 const DEMO: Player[] = ['阿明', '阿強', '阿華', '小美', '阿聰'].map((name, seat) => ({

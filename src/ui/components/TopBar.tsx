@@ -1,3 +1,4 @@
+import { ThemeToggle } from './Theme'
 import type { Route } from '../../lib/router'
 import type { TournamentMode } from '../../engine/types'
 
@@ -50,6 +51,7 @@ export function TopBar({
       </a>
       <h1 className="topbar__name">{name}</h1>
       <div className="topbar__spacer" />
+      <ThemeToggle />
       <nav className="topbar__nav" aria-label="賽事畫面">
         {tabsFor(mode).map((tab) => (
           <a
