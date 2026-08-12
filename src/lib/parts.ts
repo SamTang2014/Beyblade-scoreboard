@@ -165,3 +165,59 @@ export function parseParts(rows: string[][]): PartRow[] | null {
   }
   return out
 }
+
+/* ── 搜尋同篩選 ─────────────────────────────────────────── */
+
+export type KindFilter = 'all' | 'blade' | 'ratchet' | 'bit' | 'assist'
+export type TypeFilter = 'all' | 'attack' | 'defense' | 'stamina' | 'balance'
+export type GradeFilter = 'all' | 'X' | 'S' | 'A' | 'B' | 'C' | 'D' | 'E' | 'unrated'
+
+export interface PartsFilter {
+  kind: KindFilter
+  type: TypeFilter
+  grade: GradeFilter
+}
+
+const GRADES = new Set<Exclude<GradeFilter, 'all' | 'unrated'>>(['X', 'S', 'A', 'B', 'C', 'D', 'E'])
+
+/**
+ * tier 字串 → 級別字頭。'' 同 '-' 係 'unrated'；'S+'→'S'。
+ *
+ * 淨係睇字頭，因為 sheet 度啲級數係 S+/S/A+/A 咁分 —— 用戶揀「S」係想見晒
+ * 成個 S 檔，唔係淨要冇加號嗰啲。認唔到嘅字一律當未評，好過憑空多一個級。
+ */
+export function gradeOf(tier: string): Exclude<GradeFilter, 'all'> {
+  const head = tier.trim().charAt(0).toUpperCase() as Exclude<GradeFilter, 'all' | 'unrated'>
+  return GRADES.has(head) ? head : 'unrated'
+}
+
+function gradeOk(tier: string, f: PartsFilter): boolean {
+  return f.grade === 'all' || gradeOf(tier) === f.grade
+}
+
+function hit(needle: string, fields: string[]): boolean {
+  return needle === '' || fields.some((v) => v.toLowerCase().includes(needle))
+}
+
+export function searchBlades(blades: BladeRow[], query: string, f: PartsFilter): BladeRow[] {
+  if (f.kind !== 'all' && f.kind !== 'blade') return []
+
+  const q = query.trim().toLowerCase()
+  return blades.filter(
+    (b) =>
+      (f.type === 'all' || b.type === f.type) &&
+      gradeOk(b.tier, f) &&
+      hit(q, [b.id, b.name, b.ratchet, b.bit, b.assist]),
+  )
+}
+
+export function searchParts(parts: PartRow[], query: string, f: PartsFilter): PartRow[] {
+  // 揀咗類型（攻擊／防禦…）即係話緊「我搵緊戰刃」—— 零件根本冇類型，
+  // 照出返啲零件就等於偷偷 OR 咗個條件落去。
+  if (f.kind === 'blade' || f.type !== 'all') return []
+
+  const q = query.trim().toLowerCase()
+  return parts.filter(
+    (p) => (f.kind === 'all' || p.kind === f.kind) && gradeOk(p.tier, f) && hit(q, [p.name]),
+  )
+}
