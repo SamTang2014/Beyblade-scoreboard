@@ -142,6 +142,24 @@ describe('搜尋', () => {
   it('戰刃嘅軸心同輔助戰刃都搜到', () => {
     expect(searchBlades(BLADES, 'tr', ALL).map((b) => b.id)).toEqual(['CX-07-01'])
   })
+
+  it('唔記得打橫槓都搵到：ux15 中 UX-15-01，960 中 9-60', () => {
+    expect(searchBlades(BLADES, 'ux15', ALL).map((b) => b.id)).toEqual(['UX-15-01'])
+    expect(searchParts(PARTS, '960', ALL).map((p) => p.name)).toEqual(['9-60'])
+  })
+
+  it('自己打咗橫槓就係要求：1-60 唔會亂中 UX-16-01 入面嘅「16-0」', () => {
+    const list = [
+      blade({ id: 'UX-16-01', name: '時鐘幻象', ratchet: '9-65' }),
+      blade({ id: 'BX-99', name: '求其一隻', ratchet: '1-60' }),
+    ]
+    expect(searchBlades(list, '1-60', ALL).map((b) => b.id)).toEqual(['BX-99'])
+  })
+
+  it('查詢有 regex 特殊字元唔會炸、唔會亂 match', () => {
+    expect(() => searchBlades(BLADES, '(', ALL)).not.toThrow()
+    expect(searchBlades(BLADES, '.', ALL)).toEqual([])
+  })
 })
 
 describe('篩選', () => {

@@ -195,19 +195,29 @@ function gradeOk(tier: string, f: PartsFilter): boolean {
   return f.grade === 'all' || gradeOf(tier) === f.grade
 }
 
-function hit(needle: string, fields: string[]): boolean {
-  return needle === '' || fields.some((v) => v.toLowerCase().includes(needle))
+/**
+ * 查詢每個字之間當「可能夾住連字號或者空格」—— 打「ux16」冇人記得 sheet 度
+ * 寫法係「UX-16」，一樣要搵到。用戶自己打咗嘅橫槓就係要求嘅一部分，照要對得上：
+ * 「1-60」唔會鬆到連「UX-16-01」入面嘅「16-0」都算數。
+ */
+function matcherOf(query: string): (v: string) => boolean {
+  const q = query.trim().toLowerCase()
+  if (q === '') return () => true
+  const re = new RegExp(
+    q.split('').map((c) => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[-\\s]*'),
+  )
+  return (v) => re.test(v.toLowerCase())
 }
 
 export function searchBlades(blades: BladeRow[], query: string, f: PartsFilter): BladeRow[] {
   if (f.kind !== 'all' && f.kind !== 'blade') return []
 
-  const q = query.trim().toLowerCase()
+  const match = matcherOf(query)
   return blades.filter(
     (b) =>
       (f.type === 'all' || b.type === f.type) &&
       gradeOk(b.tier, f) &&
-      hit(q, [b.id, b.name, b.ratchet, b.bit, b.assist]),
+      [b.id, b.name, b.ratchet, b.bit, b.assist].some(match),
   )
 }
 
@@ -216,8 +226,8 @@ export function searchParts(parts: PartRow[], query: string, f: PartsFilter): Pa
   // 照出返啲零件就等於偷偷 OR 咗個條件落去。
   if (f.kind === 'blade' || f.type !== 'all') return []
 
-  const q = query.trim().toLowerCase()
+  const match = matcherOf(query)
   return parts.filter(
-    (p) => (f.kind === 'all' || p.kind === f.kind) && gradeOk(p.tier, f) && hit(q, [p.name]),
+    (p) => (f.kind === 'all' || p.kind === f.kind) && gradeOk(p.tier, f) && match(p.name),
   )
 }
