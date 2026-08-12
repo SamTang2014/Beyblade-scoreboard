@@ -17,6 +17,8 @@ export type Route =
   | { name: 'board'; id: string }
   /** id 係 null 就係由主頁入嚟嘅全局零件版 —— 唔使有場賽事都查到零件。 */
   | { name: 'parts'; id: string | null }
+  /** 砌隊版同樣唔綁賽事 —— 選手賽前自己砌，同邊場波無關。 */
+  | { name: 'team' }
 
 const SUB: Record<
   string,
@@ -34,6 +36,7 @@ const SUB: Record<
 export function parseHash(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean)
   if (parts[0] === 'parts') return { name: 'parts', id: null }
+  if (parts[0] === 'team') return { name: 'team' }
   if (parts[0] !== 't' || parts[1] === undefined) return { name: 'home' }
 
   const id = parts[1]

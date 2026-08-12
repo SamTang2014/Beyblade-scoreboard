@@ -79,6 +79,9 @@ export function Home() {
             <a className="btn btn--big chamfer" href="#/parts">
               零件圖鑑
             </a>
+            <a className="btn btn--big chamfer" href="#/team">
+              砌隊
+            </a>
           </div>
         </div>
         <CircleDial

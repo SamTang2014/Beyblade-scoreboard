@@ -21,6 +21,10 @@ describe('route 解析', () => {
     expect(parseHash('#/parts')).toEqual({ name: 'parts', id: null })
   })
 
+  it('砌隊版（同樣唔使有場賽事）', () => {
+    expect(parseHash('#/team')).toEqual({ name: 'team' })
+  })
+
   it('唔認得嘅 sub 照去入分版', () => {
     expect(parseHash('#/t/abc/wat')).toEqual({ name: 'console', id: 'abc', matchId: null })
   })

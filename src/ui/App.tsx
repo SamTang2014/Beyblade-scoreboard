@@ -9,6 +9,7 @@ import { Matrix } from './Matrix'
 import { Bracket } from './Bracket'
 import { Board } from './Board'
 import { Parts } from './Parts'
+import { Team } from './Team'
 
 export function App() {
   const route = useRoute()
@@ -29,6 +30,7 @@ export function App() {
       {route.name === 'bracket' && <Bracket key={route.id} id={route.id} />}
       {route.name === 'board' && <Board key={route.id} id={route.id} />}
       {route.name === 'parts' && <Parts key={route.id ?? '@all'} id={route.id} />}
+      {route.name === 'team' && <Team />}
     </div>
   )
 }
