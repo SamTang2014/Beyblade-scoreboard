@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { usePartsData } from '../lib/partsData'
 import {
   searchBlades,
@@ -14,11 +14,14 @@ import {
   isComplete,
   resizeTeam,
   takenKeys,
+  teamText,
   type Combo,
   type Slot,
   type Team as TeamModel,
   type TeamSize,
 } from '../lib/team'
+import { renderTeamCard } from '../lib/teamCard'
+import { downloadBlob, safeName } from '../lib/download'
 import { ThemeToggle } from './components/Theme'
 
 /**
@@ -27,7 +30,9 @@ import { ThemeToggle } from './components/Theme'
  * 比賽規則係同一隊唔准重複用同一件零件，所以呢版唔係「砌完再驗」——
  * 用咗嘅嘢喺揀盤度就已經撳唔到，你根本入唔到一隊犯規嘅。
  *
- * 呢版**唔存底**：純 React state，refresh 就冇。成品靠張分享卡帶走。
+ * 呢版**唔存底**：純 React state，refresh 就冇。成品靠張分享卡帶走 ——
+ * 所以砌隊同成品係同一個 component 嘅兩個狀態，唔另開 route：
+ * 撳「返去改」要原封不動攞返砌到一半嗰隊。
  */
 
 const SLOT_LABEL: Record<Slot, string> = {
@@ -74,12 +79,26 @@ function comboIsEmpty(c: Combo | undefined): boolean {
   return c.blade === null && c.ratchet === null && c.bit === null && c.assist === null
 }
 
+function cardFilename(team: TeamModel): string {
+  return team.name.trim() === '' ? '我隊陀螺.png' : `${safeName(team.name)}-陀螺隊.png`
+}
+
 export function Team() {
   const { data, state, retry } = usePartsData()
   const [team, setTeam] = useState<TeamModel>(() => emptyTeam(3))
   const [open, setOpen] = useState<{ index: number; slot: Slot } | null>(null)
   // 縮細會斬走第 4 隻，砌咗嘢就唔可以靜靜哋掟走 —— inline 問過先。
   const [askShrink, setAskShrink] = useState(false)
+  const [card, setCard] = useState<{ url: string; blob: Blob } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [cardError, setCardError] = useState<string | null>(null)
+
+  // 換咗新卡、或者離開呢一版，舊個 object URL 要放返 —— 唔係啲 blob 會
+  // 一路吊喺度直到 refresh。
+  useEffect(() => {
+    if (card === null) return
+    return () => URL.revokeObjectURL(card.url)
+  }, [card])
 
   const missing = missingText(team)
 
@@ -102,6 +121,19 @@ export function Team() {
     setOpen(null)
   }
 
+  async function makeCard() {
+    setBusy(true)
+    setCardError(null)
+    try {
+      const blob = await renderTeamCard(team)
+      setCard({ blob, url: URL.createObjectURL(blob) })
+    } catch (e) {
+      setCardError(e instanceof Error ? e.message : '出唔到張卡。')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <>
       <header className="topbar">
@@ -113,116 +145,227 @@ export function Team() {
         <ThemeToggle />
       </header>
 
-      <div className="page stack">
-        <p className="note">
-          <span>·</span>
-          <span>呢度唔會存底 —— 砌完記得出卡帶走。</span>
-        </p>
+      {card !== null ? (
+        <Result
+          team={team}
+          card={card}
+          onBack={() => setCard(null)}
+        />
+      ) : (
+        <div className="page stack">
+          <p className="note">
+            <span>·</span>
+            <span>呢度唔會存底 —— 砌完記得出卡帶走。</span>
+          </p>
 
-        <div className="field">
-          <span className="field__label">格式</span>
-          <div className="chips">
-            {([3, 4] as TeamSize[]).map((n) => (
-              <button
-                key={n}
-                className="chip chamfer-sm"
-                aria-pressed={team.size === n}
-                onClick={() => pickSize(n)}
-              >
-                {n === 3 ? '3 隻（3on3）' : '4 隻（禁 1）'}
-              </button>
-            ))}
-          </div>
-          {askShrink && (
-            <p className="note note--bad">
-              <span>⚠</span>
-              <span>
-                轉返 3 隻會掟走第 4 隻砌咗嘅嘢。
+          <div className="field">
+            <span className="field__label">格式</span>
+            <div className="chips">
+              {([3, 4] as TeamSize[]).map((n) => (
                 <button
-                  className="btn btn--tight btn--danger btn--armed"
-                  style={{ marginLeft: 'var(--sp-3)' }}
-                  onClick={() => {
-                    setAskShrink(false)
-                    setOpen(null)
-                    setTeam((t) => resizeTeam(t, 3))
-                  }}
+                  key={n}
+                  className="chip chamfer-sm"
+                  aria-pressed={team.size === n}
+                  onClick={() => pickSize(n)}
                 >
-                  照斬
+                  {n === 3 ? '3 隻（3on3）' : '4 隻（禁 1）'}
                 </button>
-                <button
-                  className="btn btn--quiet btn--tight"
-                  style={{ marginLeft: 'var(--sp-2)' }}
-                  onClick={() => setAskShrink(false)}
-                >
-                  算數
-                </button>
-              </span>
-            </p>
-          )}
-        </div>
-
-        <div className="field">
-          <label className="field__label" htmlFor="team-name">
-            隊名
-          </label>
-          <input
-            id="team-name"
-            className="input chamfer-sm"
-            value={team.name}
-            placeholder="隊名（出卡會顯示）"
-            onChange={(e) => setTeam((t) => ({ ...t, name: e.target.value }))}
-          />
-        </div>
-
-        {data === null && state === 'loading' && <p className="empty">攞緊零件資料…</p>}
-
-        {data === null && state === 'error' && (
-          <div className="empty">
-            <p>攞唔到零件資料，砌唔到隊住。啲資料喺一張公開嘅 Google Sheet 度。</p>
-            <div className="btnrow" style={{ justifyContent: 'center', marginTop: 'var(--sp-4)' }}>
-              <button className="btn chamfer-sm" onClick={retry}>
-                再試
-              </button>
+              ))}
             </div>
-          </div>
-        )}
-
-        {data !== null &&
-          team.combos.map((combo, i) => (
-            <ComboCard
-              key={i}
-              index={i}
-              combo={combo}
-              team={team}
-              blades={data.blades}
-              parts={data.parts}
-              open={open?.index === i ? open.slot : null}
-              onOpen={(slot) =>
-                setOpen((cur) =>
-                  cur !== null && cur.index === i && cur.slot === slot ? null : { index: i, slot },
-                )
-              }
-              onPick={(slot, value) => setSlot(i, slot, value)}
-            />
-          ))}
-
-        {data !== null && (
-          <div className="stack">
-            <div className="btnrow">
-              <button className="btn btn--primary btn--big chamfer" disabled={!isComplete(team)}>
-                出卡
-              </button>
-            </div>
-            {missing !== null && (
-              <p className="note">
-                <span>·</span>
-                <span>{missing}。砌齊晒先出得卡。</span>
+            {askShrink && (
+              <p className="note note--bad">
+                <span>⚠</span>
+                <span>
+                  轉返 3 隻會掟走第 4 隻砌咗嘅嘢。
+                  <button
+                    className="btn btn--tight btn--danger btn--armed"
+                    style={{ marginLeft: 'var(--sp-3)' }}
+                    onClick={() => {
+                      setAskShrink(false)
+                      setOpen(null)
+                      setTeam((t) => resizeTeam(t, 3))
+                    }}
+                  >
+                    照斬
+                  </button>
+                  <button
+                    className="btn btn--quiet btn--tight"
+                    style={{ marginLeft: 'var(--sp-2)' }}
+                    onClick={() => setAskShrink(false)}
+                  >
+                    算數
+                  </button>
+                </span>
               </p>
             )}
           </div>
-        )}
-      </div>
+
+          <div className="field">
+            <label className="field__label" htmlFor="team-name">
+              隊名
+            </label>
+            <input
+              id="team-name"
+              className="input chamfer-sm"
+              value={team.name}
+              placeholder="隊名（出卡會顯示）"
+              onChange={(e) => setTeam((t) => ({ ...t, name: e.target.value }))}
+            />
+          </div>
+
+          {data === null && state === 'loading' && <p className="empty">攞緊零件資料…</p>}
+
+          {data === null && state === 'error' && (
+            <div className="empty">
+              <p>攞唔到零件資料，砌唔到隊住。啲資料喺一張公開嘅 Google Sheet 度。</p>
+              <div
+                className="btnrow"
+                style={{ justifyContent: 'center', marginTop: 'var(--sp-4)' }}
+              >
+                <button className="btn chamfer-sm" onClick={retry}>
+                  再試
+                </button>
+              </div>
+            </div>
+          )}
+
+          {data !== null &&
+            team.combos.map((combo, i) => (
+              <ComboCard
+                key={i}
+                index={i}
+                combo={combo}
+                team={team}
+                blades={data.blades}
+                parts={data.parts}
+                open={open?.index === i ? open.slot : null}
+                onOpen={(slot) =>
+                  setOpen((cur) =>
+                    cur !== null && cur.index === i && cur.slot === slot
+                      ? null
+                      : { index: i, slot },
+                  )
+                }
+                onPick={(slot, value) => setSlot(i, slot, value)}
+              />
+            ))}
+
+          {data !== null && (
+            <div className="stack">
+              <div className="btnrow">
+                <button
+                  className="btn btn--primary btn--big chamfer"
+                  disabled={!isComplete(team) || busy}
+                  onClick={makeCard}
+                >
+                  {busy ? '整緊張卡…' : '出卡'}
+                </button>
+              </div>
+              {missing !== null && (
+                <p className="note">
+                  <span>·</span>
+                  <span>{missing}。砌齊晒先出得卡。</span>
+                </p>
+              )}
+              {cardError !== null && (
+                <p className="note note--bad">
+                  <span>⚠</span>
+                  <span>{cardError}</span>
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </>
+  )
+}
+
+function Result({
+  team,
+  card,
+  onBack,
+}: {
+  team: TeamModel
+  card: { url: string; blob: Blob }
+  onBack: () => void
+}) {
+  const [said, setSaid] = useState<string | null>(null)
+  // clipboard 俾人封咗（http、或者用戶唔批）就要有得手動 copy，唔可以靜雞雞乜都冇。
+  const [manual, setManual] = useState<string | null>(null)
+
+  const filename = cardFilename(team)
+  const text = teamText(team)
+  // 桌面 Chrome 冇 navigator.share，粒掣擺出嚟撳親都冇反應，所以索性唔出。
+  const canShare = typeof navigator.share === 'function'
+
+  async function share() {
+    const file = new File([card.blob], filename, { type: 'image/png' })
+    try {
+      if (navigator.canShare?.({ files: [file] }) === true) {
+        await navigator.share({ files: [file] })
+      } else {
+        // 有 share 但唔收檔案（部分 Android／舊 Safari）——最少分享得段文字。
+        await navigator.share({ text })
+      }
+    } catch {
+      // 用戶撳取消都會掟錯，唔算出事，唔好嚇佢。
+    }
+  }
+
+  async function copy() {
+    try {
+      if (navigator.clipboard === undefined) throw new Error('冇 clipboard')
+      await navigator.clipboard.writeText(text)
+      setManual(null)
+      setSaid('copy 咗')
+    } catch {
+      setManual(text)
+      setSaid(null)
+    }
+  }
+
+  return (
+    <div className="page stack">
+      <img className="tcardimg chamfer" src={card.url} alt={`${team.name || '我隊陀螺'} 嘅分享卡`} />
+
+      <div className="btnrow">
+        {canShare && (
+          <button className="btn btn--primary btn--big chamfer" onClick={share}>
+            分享
+          </button>
+        )}
+        <button className="btn btn--big chamfer" onClick={copy}>
+          copy 文字
+        </button>
+        <button
+          className="btn btn--big chamfer"
+          onClick={() => downloadBlob(filename, card.blob)}
+        >
+          down 低張圖
+        </button>
+      </div>
+
+      {said !== null && (
+        <p className="note" role="status">
+          <span>·</span>
+          <span>{said}。貼得落 WhatsApp、Discord 嗰啲。</span>
+        </p>
+      )}
+
+      {manual !== null && (
+        <div className="field">
+          <span className="field__label">copy 唔到，自己揀晒佢 copy</span>
+          <textarea className="input tmanual" readOnly rows={8} value={manual} />
+        </div>
+      )}
+
+      <div className="btnrow">
+        <button className="btn btn--quiet" onClick={onBack}>
+          返去改
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -313,7 +456,14 @@ function Picker({
   // 隊入面其他隻用咗嘅嘢 —— 呢度就係「唔准重複」落地嘅位。
   const taken = takenKeys(team, slot, index)
 
-  const items: { key: string; name: string; tier: string; img: string; meta: string; value: BladeRow | PartRow }[] =
+  const items: {
+    key: string
+    name: string
+    tier: string
+    img: string
+    meta: string
+    value: BladeRow | PartRow
+  }[] =
     slot === 'blade'
       ? searchBlades(blades, query, { kind: 'blade', type, grade }).map((b, i) => ({
           key: `b${i}/${b.id}`,

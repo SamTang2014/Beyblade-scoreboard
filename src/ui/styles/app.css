@@ -1830,6 +1830,21 @@ button.pcard__main:hover {
   text-decoration: line-through;
 }
 
+/* 張卡本身係 4:5，太大會迫到啲掣落咗一屏之後 —— 高度封頂好過闊度封頂。 */
+.tcardimg {
+  display: block;
+  max-width: 100%;
+  max-height: 70vh;
+  margin-inline: auto;
+  border: 1px solid var(--line);
+}
+
+.tmanual {
+  font-size: var(--step--1);
+  font-variation-settings: 'wdth' 100, 'wght' 500;
+  resize: vertical;
+}
+
 /* ── 動畫 ───────────────────────────────────────────────── */
 
 @keyframes pop {
