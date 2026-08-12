@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTournament } from '../storage/browserStore'
 import { usePartsData } from '../lib/partsData'
 import {
@@ -12,6 +12,7 @@ import {
   type TypeFilter,
 } from '../lib/parts'
 import { TopBar } from './components/TopBar'
+import { ThemeToggle } from './components/Theme'
 import { NotFound } from './Setup'
 
 /**
@@ -69,14 +70,47 @@ function ageText(at: number): string {
   return days <= 0 ? '用緊今日攞落嚟嗰份。' : `用緊 ${days} 日前攞落嚟嗰份。`
 }
 
-export function Parts({ id }: { id: string }) {
+export function Parts({ id }: { id: string | null }) {
+  if (id === null) return <PartsView topbar={<GlobalBar />} />
+  return <TournamentParts id={id} />
+}
+
+function TournamentParts({ id }: { id: string }) {
   const { tournament } = useTournament(id)
+  if (tournament === null) return <NotFound />
+  return (
+    <PartsView
+      topbar={
+        <TopBar
+          id={id}
+          name={tournament.name || '未命名賽事'}
+          current="parts"
+          mode={tournament.mode}
+        />
+      }
+    />
+  )
+}
+
+/** 由主頁入嚟冇場賽事，冇 tab 好擺 —— 淨係返去、標題同深淺色掣。 */
+function GlobalBar() {
+  return (
+    <header className="topbar">
+      <a className="navlink" href="#/" aria-label="返主頁">
+        ←
+      </a>
+      <h1 className="topbar__name">零件圖鑑</h1>
+      <div className="topbar__spacer" />
+      <ThemeToggle />
+    </header>
+  )
+}
+
+function PartsView({ topbar }: { topbar: ReactNode }) {
   const { data, state, retry } = usePartsData()
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<PartsFilter>({ kind: 'all', type: 'all', grade: 'all' })
   const [openId, setOpenId] = useState<string | null>(null)
-
-  if (tournament === null) return <NotFound />
 
   // 揀零件（固鎖／軸心／輔助戰刃）嗰陣類型排會收埋。收埋咗仲 AND 住舊嘅
   // 揀擇就會出現「乜都搵唔到但睇唔出點解」，所以轉種類就順手 reset 返類型。
@@ -101,7 +135,7 @@ export function Parts({ id }: { id: string }) {
 
   return (
     <>
-      <TopBar id={id} name={tournament.name || '未命名賽事'} current="parts" mode={tournament.mode} />
+      {topbar}
       <div className="page stack">
         <div className="field">
           <label className="field__label" htmlFor="parts-q">

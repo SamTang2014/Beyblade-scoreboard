@@ -76,6 +76,9 @@ export function Home() {
             <button className="btn btn--big chamfer" onClick={importBackup}>
               入返個備份
             </button>
+            <a className="btn btn--big chamfer" href="#/parts">
+              零件圖鑑
+            </a>
           </div>
         </div>
         <CircleDial

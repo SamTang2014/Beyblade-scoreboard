@@ -17,6 +17,10 @@ describe('route 解析', () => {
     }
   })
 
+  it('全局零件版（主頁入嚟，冇賽事）', () => {
+    expect(parseHash('#/parts')).toEqual({ name: 'parts', id: null })
+  })
+
   it('唔認得嘅 sub 照去入分版', () => {
     expect(parseHash('#/t/abc/wat')).toEqual({ name: 'console', id: 'abc', matchId: null })
   })

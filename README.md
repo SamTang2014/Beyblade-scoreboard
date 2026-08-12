@@ -18,7 +18,7 @@ npm run dev
 
 ## 部署
 
-**已經自動化咗。** `git push` 上 `main` → GitHub Actions typecheck、跑 462 個測試、build、
+**已經自動化咗。** `git push` 上 `main` → GitHub Actions typecheck、跑 463 個測試、build、
 部署去 GitHub Pages，大約一分鐘。**測試唔過就唔會部署** —— 寧願個網站停喺舊版本，
 都好過賽事當日推咗個爛嘅上去。
 
@@ -53,7 +53,7 @@ npm run build && npm run preview
 
 | 指令 | 做咩 |
 |---|---|
-| `npm test` | 跑 462 個測試 |
+| `npm test` | 跑 463 個測試 |
 | `npm run test:watch` | 邊改邊跑 |
 | `npm run typecheck` | 淨係 typecheck |
 
@@ -71,7 +71,8 @@ npm run build && npm run preview
 | 電視 | `#/t/<id>/board` | 深色大字，接電視俾一班人睇 |
 | 零件 | `#/t/<id>/parts` | 搵戰刃／固鎖／軸心／輔助戰刃：打字搜 + 揀種類、類型、階級 |
 
-**零件版**係查嘢用嘅，同賽事本身冇關係，所以邊個賽制都見到。資料即場拉一張
+**零件版**係查嘢用嘅，同賽事本身冇關係，所以邊個賽制都見到；主頁都有粒「零件圖鑑」掣，
+行 `#/parts`，未開場都查到。資料即場拉一張
 公開嘅 Google Sheet 零件資料庫（275 隻戰刃 + 108 件零件），純讀唔會寫返去。
 拉完會 cache 落 localStorage：下次開版即刻有嘢睇，同時背後拉新嘅；拉唔到就照用
 舊嗰份，版面會標明手上呢份幾舊。張 sheet 唔係我哋控制 —— owner 改咗欄名或者鎖咗權限，

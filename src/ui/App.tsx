@@ -28,7 +28,7 @@ export function App() {
       {route.name === 'matrix' && <Matrix key={route.id} id={route.id} />}
       {route.name === 'bracket' && <Bracket key={route.id} id={route.id} />}
       {route.name === 'board' && <Board key={route.id} id={route.id} />}
-      {route.name === 'parts' && <Parts key={route.id} id={route.id} />}
+      {route.name === 'parts' && <Parts key={route.id ?? '@all'} id={route.id} />}
     </div>
   )
 }
