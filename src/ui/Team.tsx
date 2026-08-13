@@ -83,6 +83,28 @@ function cardFilename(team: TeamModel): string {
   return team.name.trim() === '' ? '我隊陀螺.png' : `${safeName(team.name)}-陀螺隊.png`
 }
 
+/**
+ * navigator.clipboard 淨係喺 https 同 localhost 先有 —— 場地部機行 http LAN
+ * 位址（例如 172.20.x.x:5173）嗰陣係 undefined。舊法 execCommand 冇呢個限制，
+ * 頂得住呢種場合。得唔得要睇返個 return，唔係就要彈手動框。
+ */
+function copyByExec(text: string): boolean {
+  const ta = document.createElement('textarea')
+  ta.value = text
+  ta.style.position = 'fixed'
+  ta.style.opacity = '0'
+  document.body.appendChild(ta)
+  ta.select()
+  let ok = false
+  try {
+    ok = document.execCommand('copy')
+  } catch {
+    ok = false
+  }
+  ta.remove()
+  return ok
+}
+
 export function Team() {
   const { data, state, retry } = usePartsData()
   const [team, setTeam] = useState<TeamModel>(() => emptyTeam(3))
@@ -317,12 +339,15 @@ function Result({
     try {
       if (navigator.clipboard === undefined) throw new Error('冇 clipboard')
       await navigator.clipboard.writeText(text)
-      setManual(null)
-      setSaid('copy 咗')
     } catch {
-      setManual(text)
-      setSaid(null)
+      if (!copyByExec(text)) {
+        setManual(text)
+        setSaid(null)
+        return
+      }
     }
+    setManual(null)
+    setSaid('copy 咗')
   }
 
   return (

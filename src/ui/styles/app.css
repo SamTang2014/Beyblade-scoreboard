@@ -45,7 +45,9 @@ button {
   cursor: pointer;
 }
 
-input {
+input,
+textarea {
+  /* 唔搭埋 textarea 嘅話，佢會跟瀏覽器預設出黑字 —— 喺深色底直接睇唔到。 */
   font: inherit;
   color: inherit;
 }
