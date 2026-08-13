@@ -55,10 +55,21 @@ function drawContain(
   ctx.drawImage(img, x + (box - w) / 2, y + (box - h) / 2, w, h)
 }
 
-function comboLine(c: Combo): string {
-  const bits = [c.ratchet?.name ?? '？', c.bit?.name ?? '？']
-  if (c.assist !== null) bits.push(assistLabel(c.assist.name))
-  return bits.join('　·　')
+interface ComboImages {
+  blade: HTMLImageElement | null
+  ratchet: HTMLImageElement | null
+  bit: HTMLImageElement | null
+  assist: HTMLImageElement | null
+}
+
+async function loadComboImages(c: Combo): Promise<ComboImages> {
+  const [blade, ratchet, bit, assist] = await Promise.all([
+    loadImage(c.blade?.img ?? ''),
+    loadImage(c.ratchet?.img ?? ''),
+    loadImage(c.bit?.img ?? ''),
+    loadImage(c.assist?.img ?? ''),
+  ])
+  return { blade, ratchet, bit, assist }
 }
 
 export async function renderTeamCard(team: Team): Promise<Blob> {
@@ -68,8 +79,8 @@ export async function renderTeamCard(team: Team): Promise<Blob> {
   const ctx = canvas.getContext('2d')
   if (ctx === null) throw new Error('畫唔到張卡（個瀏覽器唔支援 canvas）。')
 
-  // 全部相一齊拉，唔好一張等一張 —— 四張相排隊 load 隨時十幾秒。
-  const images = await Promise.all(team.combos.map((c) => loadImage(c.blade?.img ?? '')))
+  // 全部相一齊拉，唔好一張等一張 —— 十幾張相排隊 load 隨時半分鐘。
+  const images = await Promise.all(team.combos.map(loadComboImages))
 
   ctx.fillStyle = FLOOR
   ctx.fillRect(0, 0, W, H)
@@ -107,9 +118,9 @@ export async function renderTeamCard(team: Team): Promise<Blob> {
     ctx.fillStyle = SLAB
     ctx.fillRect(shotX, shotY, box, box)
 
-    const img = images[i] ?? null
-    if (img !== null) {
-      drawContain(ctx, img, shotX, shotY, box)
+    const imgs = images[i] ?? null
+    if (imgs?.blade != null) {
+      drawContain(ctx, imgs.blade, shotX, shotY, box)
     } else {
       // 冇相都要見到個位，唔好留個窿當冇嘢。
       ctx.fillStyle = INK_SOFT
@@ -120,11 +131,10 @@ export async function renderTeamCard(team: Team): Promise<Blob> {
     }
 
     const textX = shotX + box + 36
-    const midY = shotY + box / 2
 
     ctx.fillStyle = GOLD
     ctx.font = '800 44px "PingFang HK", "Noto Sans HK", sans-serif'
-    ctx.fillText(`${i + 1}`, textX, midY - 44)
+    ctx.fillText(`${i + 1}`, textX, shotY + 48)
 
     ctx.fillStyle = INK
     ctx.font = '700 46px "PingFang HK", "Noto Sans HK", sans-serif'
@@ -133,15 +143,34 @@ export async function renderTeamCard(team: Team): Promise<Blob> {
     const fitted = ctx.measureText(name).width > W - textX - pad
       ? bladeIdentity(name)
       : name
-    ctx.fillText(fitted, textX + 52, midY - 44)
+    ctx.fillText(fitted, textX + 52, shotY + 48)
 
     ctx.fillStyle = INK_SOFT
     ctx.font = '600 32px "PingFang HK", "Noto Sans HK", sans-serif'
-    ctx.fillText(combo.blade?.id ?? '', textX, midY + 6)
+    ctx.fillText(combo.blade?.id ?? '', textX, shotY + 94)
 
-    ctx.fillStyle = INK
-    ctx.font = '600 36px "PingFang HK", "Noto Sans HK", sans-serif'
-    ctx.fillText(comboLine(combo), textX, midY + 58)
+    // 固鎖／軸心／輔助都要有樣睇 —— 淨係得個「9-60」你唔會知隻鎖生成點。
+    // 細圖貼住戰刃格個底掃過去，每張側邊跟返個名。
+    const THUMB = 84
+    const thumbY = shotY + box - THUMB
+    const partBits: { img: HTMLImageElement | null; label: string }[] = [
+      { img: imgs?.ratchet ?? null, label: combo.ratchet?.name ?? '？' },
+      { img: imgs?.bit ?? null, label: combo.bit?.name ?? '？' },
+    ]
+    if (combo.assist !== null) {
+      partBits.push({ img: imgs?.assist ?? null, label: assistLabel(combo.assist.name) })
+    }
+
+    let px = textX
+    ctx.font = '600 34px "PingFang HK", "Noto Sans HK", sans-serif'
+    for (const p of partBits) {
+      ctx.fillStyle = SLAB
+      ctx.fillRect(px, thumbY, THUMB, THUMB)
+      if (p.img !== null) drawContain(ctx, p.img, px, thumbY, THUMB)
+      ctx.fillStyle = INK
+      ctx.fillText(p.label, px + THUMB + 14, thumbY + THUMB / 2 + 12)
+      px += THUMB + 14 + ctx.measureText(p.label).width + 44
+    }
   }
 
   ctx.strokeStyle = LINE
