@@ -379,7 +379,15 @@ table {
 .tcard__actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: var(--sp-3);
   padding: 0 var(--sp-3) var(--sp-2);
+}
+
+.tcard__manual {
+  display: grid;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-3) var(--sp-3);
 }
 
 .tcard__confirm {

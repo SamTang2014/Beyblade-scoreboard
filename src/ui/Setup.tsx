@@ -6,7 +6,7 @@ import { MODE_HINT, MODE_LABEL, canStart, cutOptions, startTournament } from '..
 import { advanceOptions, poolLabel, poolOptions, poolSizes } from '../engine/pools'
 import { copyText } from '../lib/clipboard'
 import { newId } from '../lib/id'
-import { splitNames } from '../lib/names'
+import { rosterText, splitNames } from '../lib/names'
 import { go } from '../lib/router'
 import { TopBar } from './components/TopBar'
 import type { Player, TournamentMode } from '../engine/types'
@@ -63,8 +63,7 @@ export function Setup({ id }: { id: string }) {
   }
 
   async function copyRoster() {
-    // 一行一個名 —— 開新賽事嗰邊 paste 得返入去。
-    const text = [...players].sort((a, b) => a.seat - b.seat).map((p) => p.name).join('\n')
+    const text = rosterText(players)
     if (await copyText(text)) {
       setCopySaid('copy 咗名單')
       setManualRoster(null)

@@ -6,6 +6,14 @@
  *
  * copy 名單嗰邊出嘅係一行一個名，所以 copy 完 paste 得返入嚟。
  */
+/** 名單出做一行一個名，照 seat 次序 —— `splitNames` 食得返。 */
+export function rosterText(players: { name: string; seat: number }[]): string {
+  return [...players]
+    .sort((a, b) => a.seat - b.seat)
+    .map((p) => p.name)
+    .join('\n')
+}
+
 export function splitNames(text: string): string[] {
   const out: string[] = []
   for (const raw of text.split(/[\n\r,，、]+/)) {

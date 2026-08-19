@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { splitNames } from './names'
+import { rosterText, splitNames } from './names'
 
 describe('拆名', () => {
   it('一個名就一個', () => {
@@ -33,5 +33,24 @@ describe('拆名', () => {
   it('乜都冇就吉', () => {
     expect(splitNames('')).toEqual([])
     expect(splitNames(' \n , 、')).toEqual([])
+  })
+})
+
+describe('名單出 text', () => {
+  it('照 seat 次序，一行一個名', () => {
+    expect(
+      rosterText([
+        { name: '阿強', seat: 1 },
+        { name: '阿明', seat: 0 },
+      ]),
+    ).toBe('阿明\n阿強')
+  })
+
+  it('copy 出嚟嘅嘢 splitNames 食得返', () => {
+    const players = [
+      { name: '阿 May', seat: 0 },
+      { name: '細B', seat: 1 },
+    ]
+    expect(splitNames(rosterText(players))).toEqual(['阿 May', '細B'])
   })
 })

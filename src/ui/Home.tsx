@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { store, storageIsPersistent } from '../storage/browserStore'
+import { copyText } from '../lib/clipboard'
 import { downloadJson, pickJsonFile } from '../lib/download'
+import { rosterText } from '../lib/names'
 import { go } from '../lib/router'
 import { CircleDial } from './components/CircleDial'
 import { totalRounds } from '../engine/schedule'
@@ -153,7 +155,12 @@ function TournamentCard({
   onDeleted: (name: string) => void
 }) {
   const [armed, setArmed] = useState(false)
+  // 開咗波之後返唔到 setup 頁，所以粒 copy 名單掣要喺呢度都有一粒 ——
+  // 開新場之前你本來就企喺主頁。
+  const [copySaid, setCopySaid] = useState<string | null>(null)
+  const [manualRoster, setManualRoster] = useState<string | null>(null)
   const t = store.get(summary.id)
+  const players = t === null ? [] : t.players
   // 用「打完咗」而唔係「開咗波」，同排名版嗰個數一致。
   const done = t === null ? 0 : completedCount(t.matches)
   const pct = summary.matchCount === 0 ? 0 : (done / summary.matchCount) * 100
@@ -204,6 +211,25 @@ function TournamentCard({
         </div>
       ) : (
         <div className="tcard__actions">
+          {players.length > 0 && (
+            <button
+              className="btn btn--quiet btn--tight"
+              onClick={async () => {
+                const text = rosterText(players)
+                if (await copyText(text)) {
+                  setCopySaid('copy 咗名單')
+                  setManualRoster(null)
+                } else {
+                  setCopySaid(null)
+                  setManualRoster(text)
+                }
+              }}
+              aria-label={`copy ${summary.name || '未命名賽事'} 嘅名單`}
+            >
+              copy 名單
+            </button>
+          )}
+          {copySaid !== null && <span className="note">{copySaid}</span>}
           <button
             className="btn btn--danger btn--tight"
             onClick={() => setArmed(true)}
@@ -211,6 +237,20 @@ function TournamentCard({
           >
             刪除
           </button>
+        </div>
+      )}
+      {manualRoster !== null && (
+        <div className="tcard__manual">
+          <p className="note">
+            <span>·</span>
+            <span>copy 唔到，自己楝住嚟抄：</span>
+          </p>
+          <textarea
+            className="input"
+            readOnly
+            rows={Math.min(players.length, 8)}
+            value={manualRoster}
+          />
         </div>
       )}
     </div>
