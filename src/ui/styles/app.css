@@ -504,6 +504,12 @@ table {
   background: var(--slab);
 }
 
+.roster__tools {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
 .roster__seat {
   min-width: 2ch;
   color: var(--ink-faint);

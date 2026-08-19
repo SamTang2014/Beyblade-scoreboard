@@ -4,7 +4,9 @@ import { totalMatches, totalRounds } from '../engine/schedule'
 import { bracketRounds, byeCount } from '../engine/bracket'
 import { MODE_HINT, MODE_LABEL, canStart, cutOptions, startTournament } from '../engine/tournament'
 import { advanceOptions, poolLabel, poolOptions, poolSizes } from '../engine/pools'
+import { copyText } from '../lib/clipboard'
 import { newId } from '../lib/id'
+import { splitNames } from '../lib/names'
 import { go } from '../lib/router'
 import { TopBar } from './components/TopBar'
 import type { Player, TournamentMode } from '../engine/types'
@@ -14,6 +16,9 @@ export function Setup({ id }: { id: string }) {
   const [draft, setDraft] = useState('')
   const [warning, setWarning] = useState<string | null>(null)
   const [armed, setArmed] = useState<string | null>(null)
+  // copy 唔到（http 兩條路都衰）就要有得手動抄，唔可以靜雞雞乜都冇。
+  const [copySaid, setCopySaid] = useState<string | null>(null)
+  const [manualRoster, setManualRoster] = useState<string | null>(null)
   const nameBox = useRef<HTMLInputElement>(null)
 
   if (tournament === null) return <NotFound />
@@ -22,18 +27,51 @@ export function Setup({ id }: { id: string }) {
   const alreadyStarted = tournament.matches.some((m) => m.rounds.length > 0)
 
 
-  function addPlayer() {
-    const name = draft.trim()
-    if (name === '') return
-    if (players.some((p) => p.name === name)) {
-      setWarning(`已經有一個「${name}」。改個唔同嘅名，唔係入分嗰陣會撈亂。`)
+  /** 一個名定一串名都食 —— paste 落嚟嘅名單同逐個打行同一條路。 */
+  function addNames(text: string) {
+    const names = splitNames(text)
+    if (names.length === 0) return
+
+    const dupes = names.filter((n) => players.some((p) => p.name === n))
+    const fresh = names.filter((n) => !players.some((p) => p.name === n))
+
+    // 逐個打嗰陣撞名：draft 留返喺度俾你改，同以前一樣。
+    if (names.length === 1 && fresh.length === 0) {
+      setWarning(`已經有一個「${names[0]}」。改個唔同嘅名，唔係入分嗰陣會撈亂。`)
       return
     }
-    const seat = players.reduce((mx, p) => Math.max(mx, p.seat), -1) + 1
-    update((t) => ({ ...t, players: [...t.players, { id: newId(), name, seat, pool: null }] }))
+
+    if (fresh.length > 0) {
+      update((t) => {
+        let seat = t.players.reduce((mx, p) => Math.max(mx, p.seat), -1)
+        return {
+          ...t,
+          players: [
+            ...t.players,
+            ...fresh.map((name) => ({ id: newId(), name, seat: ++seat, pool: null })),
+          ],
+        }
+      })
+    }
     setDraft('')
-    setWarning(null)
+    setWarning(dupes.length === 0 ? null : `加咗 ${fresh.length} 個；已經有嘅跳過：${dupes.join('、')}。`)
     nameBox.current?.focus()
+  }
+
+  function addPlayer() {
+    addNames(draft)
+  }
+
+  async function copyRoster() {
+    // 一行一個名 —— 開新賽事嗰邊 paste 得返入去。
+    const text = [...players].sort((a, b) => a.seat - b.seat).map((p) => p.name).join('\n')
+    if (await copyText(text)) {
+      setCopySaid('copy 咗名單')
+      setManualRoster(null)
+    } else {
+      setCopySaid(null)
+      setManualRoster(text)
+    }
   }
 
   /** 呢個選手已經打咗幾多場 —— 除名會連呢啲成績一齊冇。 */
@@ -259,9 +297,18 @@ export function Setup({ id }: { id: string }) {
               ref={nameBox}
               className="input chamfer-sm"
               value={draft}
-              placeholder="打個名，撳 Enter 加下一個"
+              placeholder="打個名，撳 Enter；成串名 paste 都得"
               autoComplete="off"
               onChange={(e) => setDraft(e.target.value)}
+              onPaste={(e) => {
+                // 一串名直接 paste 落個 input：單行 input 會食咗啲換行，
+                // 所以要喺 paste 嗰下接原文自己處理。
+                const text = e.clipboardData.getData('text')
+                if (splitNames(text).length > 1) {
+                  e.preventDefault()
+                  addNames(text)
+                }
+              }}
             />
             <button className="btn chamfer-sm" type="submit" disabled={draft.trim() === ''}>
               加
@@ -317,6 +364,26 @@ export function Setup({ id }: { id: string }) {
                   </div>
                 )
               })}
+            <div className="roster__tools">
+              <button className="btn btn--quiet chamfer-sm" onClick={copyRoster}>
+                copy 名單
+              </button>
+              {copySaid !== null && <span className="note">{copySaid}</span>}
+            </div>
+            {manualRoster !== null && (
+              <>
+                <p className="note">
+                  <span>·</span>
+                  <span>copy 唔到，自己楝住嚟抄：</span>
+                </p>
+                <textarea
+                  className="input"
+                  readOnly
+                  rows={Math.min(players.length, 8)}
+                  value={manualRoster}
+                />
+              </>
+            )}
           </div>
         )}
 
