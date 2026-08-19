@@ -169,6 +169,47 @@ describe('砌籤表', () => {
   })
 })
 
+describe('附加場贏家排最尾', () => {
+  it('5 人：四強第 1 場係兩個輪空選手，第 2 場先係接附加場贏家嗰場', () => {
+    const semis = generateBracket(ids(5))
+      .filter((m) => m.round === 2)
+      .sort((x, y) => x.order - y.order)
+
+    expect(semis).toHaveLength(2)
+    // 第 1 場：兩邊都係輪空直入嘅人，唔使等上一場。
+    expect(semis[0]!.aFrom).toBeNull()
+    expect(semis[0]!.bFrom).toBeNull()
+    // 第 2 場先係接附加場贏家 —— 啱啱打完嗰個排最尾，有得唞。
+    expect(semis[1]!.aFrom !== null || semis[1]!.bFrom !== null).toBe(true)
+  })
+
+  it.each(SIZES)('%i 人：同一輪入面，純輪空對打嘅場排晒喺接上輪贏家嘅場前面', (n) => {
+    const b = generateBracket(ids(n))
+    for (const round of [...new Set(b.map((m) => m.round))]) {
+      const inRound = b.filter((m) => m.round === round).sort((x, y) => x.order - y.order)
+      let seenFed = false
+      for (const m of inRound) {
+        if (m.aFrom !== null || m.bFrom !== null) seenFed = true
+        else expect(seenFed).toBe(false)
+      }
+    }
+  })
+
+  it.each(SIZES)('%i 人：id 同 round/order 一致', (n) => {
+    for (const m of generateBracket(ids(n))) {
+      expect(m.id).toBe(`b${m.round}m${m.order}`)
+    }
+  })
+
+  it('8 人（冇輪空）：場次編號照舊', () => {
+    const b = generateBracket(ids(8))
+    const semi1 = b.find((m) => m.id === 'b2m1')!
+    const semi2 = b.find((m) => m.id === 'b2m2')!
+    expect([semi1.aFrom, semi1.bFrom]).toEqual(['b1m1', 'b1m2'])
+    expect([semi2.aFrom, semi2.bFrom]).toEqual(['b1m3', 'b1m4'])
+  })
+})
+
 describe('隨機抽籤', () => {
   it('人冇多冇少', () => {
     const order = drawOrder(players(8), () => 0.5)

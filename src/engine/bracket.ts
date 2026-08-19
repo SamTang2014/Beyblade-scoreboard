@@ -93,7 +93,7 @@ export function generateBracket(seedOrder: string[]): Match[] {
 
   while (sources.length > 1) {
     const next: (Source | null)[] = []
-    let order = 1
+    const pairs: { a: Source; b: Source; slot: number }[] = []
 
     for (let i = 0; i < sources.length; i += 2) {
       const a = sources[i] ?? null
@@ -114,19 +114,28 @@ export function generateBracket(seedOrder: string[]): Match[] {
         continue
       }
 
+      pairs.push({ a, b, slot: next.length })
+      next.push(null) // 場次編咗號先填返落去
+    }
+
+    // 排場次：兩邊都係輪空直入嘅場先打；接上一輪贏家嘅場排最尾，
+    // 等啱啱打完嗰個唞返陣先再上場。sort 係 stable，其餘次序不變。
+    const fed = (p: { a: Source; b: Source }) => (p.a.kind === 'match' || p.b.kind === 'match' ? 1 : 0)
+    let order = 1
+    for (const p of [...pairs].sort((x, y) => fed(x) - fed(y))) {
       const id = `b${round}m${order}`
       matches.push({
         id,
         stage: 'bracket',
         round,
         order,
-        aId: a.kind === 'player' ? a.playerId : null,
-        bId: b.kind === 'player' ? b.playerId : null,
-        aFrom: a.kind === 'match' ? a.matchId : null,
-        bFrom: b.kind === 'match' ? b.matchId : null,
+        aId: p.a.kind === 'player' ? p.a.playerId : null,
+        bId: p.b.kind === 'player' ? p.b.playerId : null,
+        aFrom: p.a.kind === 'match' ? p.a.matchId : null,
+        bFrom: p.b.kind === 'match' ? p.b.matchId : null,
         rounds: [],
       })
-      next.push({ kind: 'match', matchId: id })
+      next[p.slot] = { kind: 'match', matchId: id }
       order += 1
     }
 
