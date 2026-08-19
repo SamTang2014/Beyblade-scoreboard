@@ -384,6 +384,32 @@ table {
   padding: 0 var(--sp-3) var(--sp-2);
 }
 
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--sp-6) + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 100;
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--edge);
+  background: var(--slab);
+  color: var(--ink);
+  font-variation-settings: 'wdth' 90, 'wght' 650;
+  pointer-events: none;
+  animation: toast-in 160ms ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
 .tcard__manual {
   display: grid;
   gap: var(--sp-2);

@@ -5,6 +5,7 @@ import { downloadJson, pickJsonFile } from '../lib/download'
 import { rosterText } from '../lib/names'
 import { go } from '../lib/router'
 import { CircleDial } from './components/CircleDial'
+import { useToast } from './components/Toast'
 import { totalRounds } from '../engine/schedule'
 import { completedCount } from '../engine/standings'
 import type { Player } from '../engine/types'
@@ -86,11 +87,7 @@ export function Home() {
             </a>
           </div>
         </div>
-        <CircleDial
-          players={DEMO}
-          round={round}
-          caption="有圈嗰個位釘死，其餘順時針行一格"
-        />
+        <CircleDial players={DEMO} round={round} caption="有圈嗰個位釘死，其餘順時針行一格" />
       </section>
 
       {!storageIsPersistent && (
@@ -157,8 +154,8 @@ function TournamentCard({
   const [armed, setArmed] = useState(false)
   // 開咗波之後返唔到 setup 頁，所以粒 copy 名單掣要喺呢度都有一粒 ——
   // 開新場之前你本來就企喺主頁。
-  const [copySaid, setCopySaid] = useState<string | null>(null)
   const [manualRoster, setManualRoster] = useState<string | null>(null)
+  const { toast, show } = useToast()
   const t = store.get(summary.id)
   const players = t === null ? [] : t.players
   // 用「打完咗」而唔係「開咗波」，同排名版嗰個數一致。
@@ -167,93 +164,93 @@ function TournamentCard({
   const target = summary.matchCount === 0 ? `#/t/${summary.id}/setup` : `#/t/${summary.id}`
 
   return (
-    <div className="tcard chamfer">
-      <a className="tcard__main" href={target}>
-        <div className="tcard__top">
-          <span className="tcard__name">{summary.name || '未命名賽事'}</span>
-          <span className="tcard__meta u-tab">{formatWhen(summary.updatedAt)}</span>
-        </div>
-        <div className="tcard__bar">
-          <div className="tcard__fill" style={{ width: `${pct}%` }} />
-        </div>
-        <div className="tcard__foot u-tab">
-          {summary.playerCount} 個人 ·{' '}
-          {summary.matchCount === 0 ? '仲未排賽程' : `打咗 ${done} / ${summary.matchCount} 場`}
-        </div>
-      </a>
+    // toast 係 fixed position，唔擺入卡入面 —— 張卡個 chamfer 會 clip 埋佢。
+    <>
+      <div className="tcard chamfer">
+        <a className="tcard__main" href={target}>
+          <div className="tcard__top">
+            <span className="tcard__name">{summary.name || '未命名賽事'}</span>
+            <span className="tcard__meta u-tab">{formatWhen(summary.updatedAt)}</span>
+          </div>
+          <div className="tcard__bar">
+            <div className="tcard__fill" style={{ width: `${pct}%` }} />
+          </div>
+          <div className="tcard__foot u-tab">
+            {summary.playerCount} 個人 ·{' '}
+            {summary.matchCount === 0 ? '仲未排賽程' : `打咗 ${done} / ${summary.matchCount} 場`}
+          </div>
+        </a>
 
-      {armed ? (
-        /* 冇後端，刪咗係真係救唔返，所以確認嗰陣順手俾條路你先備份。 */
-        <div className="tcard__confirm" role="group" aria-label={`刪除 ${summary.name}`}>
-          <span className="tcard__warn">
-            {done === 0
-              ? '刪咗就冇㗎喇，救唔返。'
-              : `打咗嘅 ${done} 場成績會一齊冇，救唔返。`}
-          </span>
-          <button
-            className="btn btn--tight"
-            onClick={() => downloadJson(summary.name, store.exportJson(summary.id))}
-          >
-            先 down 低
-          </button>
-          <button className="btn btn--quiet btn--tight" onClick={() => setArmed(false)}>
-            算數
-          </button>
-          <button
-            className="btn btn--danger btn--armed btn--tight"
-            onClick={() => {
-              store.remove(summary.id)
-              onDeleted(summary.name)
-            }}
-          >
-            真係刪
-          </button>
-        </div>
-      ) : (
-        <div className="tcard__actions">
-          {players.length > 0 && (
+        {armed ? (
+          /* 冇後端，刪咗係真係救唔返，所以確認嗰陣順手俾條路你先備份。 */
+          <div className="tcard__confirm" role="group" aria-label={`刪除 ${summary.name}`}>
+            <span className="tcard__warn">
+              {done === 0 ? '刪咗就冇㗎喇，救唔返。' : `打咗嘅 ${done} 場成績會一齊冇，救唔返。`}
+            </span>
             <button
-              className="btn btn--quiet btn--tight"
-              onClick={async () => {
-                const text = rosterText(players)
-                if (await copyText(text)) {
-                  setCopySaid('copy 咗名單')
-                  setManualRoster(null)
-                } else {
-                  setCopySaid(null)
-                  setManualRoster(text)
-                }
-              }}
-              aria-label={`copy ${summary.name || '未命名賽事'} 嘅名單`}
+              className="btn btn--tight"
+              onClick={() => downloadJson(summary.name, store.exportJson(summary.id))}
             >
-              copy 名單
+              先 down 低
             </button>
-          )}
-          {copySaid !== null && <span className="note">{copySaid}</span>}
-          <button
-            className="btn btn--danger btn--tight"
-            onClick={() => setArmed(true)}
-            aria-label={`刪除 ${summary.name || '未命名賽事'}`}
-          >
-            刪除
-          </button>
-        </div>
-      )}
-      {manualRoster !== null && (
-        <div className="tcard__manual">
-          <p className="note">
-            <span>·</span>
-            <span>copy 唔到，自己楝住嚟抄：</span>
-          </p>
-          <textarea
-            className="input"
-            readOnly
-            rows={Math.min(players.length, 8)}
-            value={manualRoster}
-          />
-        </div>
-      )}
-    </div>
+            <button className="btn btn--quiet btn--tight" onClick={() => setArmed(false)}>
+              算數
+            </button>
+            <button
+              className="btn btn--danger btn--armed btn--tight"
+              onClick={() => {
+                store.remove(summary.id)
+                onDeleted(summary.name)
+              }}
+            >
+              真係刪
+            </button>
+          </div>
+        ) : (
+          <div className="tcard__actions">
+            {players.length > 0 && (
+              <button
+                className="btn btn--quiet btn--tight"
+                onClick={async () => {
+                  const text = rosterText(players)
+                  if (await copyText(text)) {
+                    show('copy 咗名單')
+                    setManualRoster(null)
+                  } else {
+                    setManualRoster(text)
+                  }
+                }}
+                aria-label={`copy ${summary.name || '未命名賽事'} 嘅名單`}
+              >
+                copy 名單
+              </button>
+            )}
+            <button
+              className="btn btn--danger btn--tight"
+              onClick={() => setArmed(true)}
+              aria-label={`刪除 ${summary.name || '未命名賽事'}`}
+            >
+              刪除
+            </button>
+          </div>
+        )}
+        {manualRoster !== null && (
+          <div className="tcard__manual">
+            <p className="note">
+              <span>·</span>
+              <span>copy 唔到，自己楝住嚟抄：</span>
+            </p>
+            <textarea
+              className="input"
+              readOnly
+              rows={Math.min(players.length, 8)}
+              value={manualRoster}
+            />
+          </div>
+        )}
+      </div>
+      {toast}
+    </>
   )
 }
 

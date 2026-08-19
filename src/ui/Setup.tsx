@@ -8,6 +8,7 @@ import { copyText } from '../lib/clipboard'
 import { newId } from '../lib/id'
 import { rosterText, splitNames } from '../lib/names'
 import { go } from '../lib/router'
+import { useToast } from './components/Toast'
 import { TopBar } from './components/TopBar'
 import type { Player, TournamentMode } from '../engine/types'
 
@@ -17,15 +18,14 @@ export function Setup({ id }: { id: string }) {
   const [warning, setWarning] = useState<string | null>(null)
   const [armed, setArmed] = useState<string | null>(null)
   // copy 唔到（http 兩條路都衰）就要有得手動抄，唔可以靜雞雞乜都冇。
-  const [copySaid, setCopySaid] = useState<string | null>(null)
   const [manualRoster, setManualRoster] = useState<string | null>(null)
+  const { toast, show } = useToast()
   const nameBox = useRef<HTMLInputElement>(null)
 
   if (tournament === null) return <NotFound />
 
   const players = tournament.players
   const alreadyStarted = tournament.matches.some((m) => m.rounds.length > 0)
-
 
   /** 一個名定一串名都食 —— paste 落嚟嘅名單同逐個打行同一條路。 */
   function addNames(text: string) {
@@ -48,13 +48,20 @@ export function Setup({ id }: { id: string }) {
           ...t,
           players: [
             ...t.players,
-            ...fresh.map((name) => ({ id: newId(), name, seat: ++seat, pool: null })),
+            ...fresh.map((name) => ({
+              id: newId(),
+              name,
+              seat: ++seat,
+              pool: null,
+            })),
           ],
         }
       })
     }
     setDraft('')
-    setWarning(dupes.length === 0 ? null : `加咗 ${fresh.length} 個；已經有嘅跳過：${dupes.join('、')}。`)
+    setWarning(
+      dupes.length === 0 ? null : `加咗 ${fresh.length} 個；已經有嘅跳過：${dupes.join('、')}。`,
+    )
     nameBox.current?.focus()
   }
 
@@ -65,10 +72,9 @@ export function Setup({ id }: { id: string }) {
   async function copyRoster() {
     const text = rosterText(players)
     if (await copyText(text)) {
-      setCopySaid('copy 咗名單')
+      show('copy 咗名單')
       setManualRoster(null)
     } else {
-      setCopySaid(null)
       setManualRoster(text)
     }
   }
@@ -146,6 +152,7 @@ export function Setup({ id }: { id: string }) {
         current="setup"
         mode={tournament.mode}
       />
+      {toast}
       <div className="page stack">
         <div className="field">
           <label className="field__label" htmlFor="tname">
@@ -236,8 +243,7 @@ export function Setup({ id }: { id: string }) {
                 <p className="note note--bad">
                   <span>⚠</span>
                   <span>
-                    而家揀咗頭 {tournament.cutSize} 名，但係得 {count} 個人。
-                    揀返上面其中一個。
+                    而家揀咗頭 {tournament.cutSize} 名，但係得 {count} 個人。 揀返上面其中一個。
                   </span>
                 </p>
               )
@@ -273,8 +279,8 @@ export function Setup({ id }: { id: string }) {
             <p className="note">
               <span>·</span>
               <span>
-                排名次序：勝場 → 分差 → 對戰（並列嗰班人之間邊個贏得多）→
-                極限勝出次數 → 總得分。全部一樣先當並列，出線位有並列就打加賽。
+                排名次序：勝場 → 分差 → 對戰（並列嗰班人之間邊個贏得多）→ 極限勝出次數 →
+                總得分。全部一樣先當並列，出線位有並列就打加賽。
               </span>
             </p>
           </div>
@@ -367,7 +373,6 @@ export function Setup({ id }: { id: string }) {
               <button className="btn btn--quiet chamfer-sm" onClick={copyRoster}>
                 copy 名單
               </button>
-              {copySaid !== null && <span className="note">{copySaid}</span>}
             </div>
             {manualRoster !== null && (
               <>
@@ -460,7 +465,10 @@ function Preview({
   if (poolsUsable && poolCount !== null && advancePerPool !== null) {
     const sizes = poolSizes(count, poolCount)
     cells.push({ num: poolCount, label: '組' })
-    cells.push({ num: sizes.reduce((n, s) => n + totalMatches(s), 0), label: '場小組賽' })
+    cells.push({
+      num: sizes.reduce((n, s) => n + totalMatches(s), 0),
+      label: '場小組賽',
+    })
     const inBracket = poolCount * advancePerPool
     cells.push({ num: inBracket, label: '人入籤表' })
     if (inBracket >= 2) cells.push({ num: bracketRounds(inBracket), label: '輪淘汰' })
@@ -570,8 +578,8 @@ function PoolSetup({
           <p className="note note--bad">
             <span>⚠</span>
             <span>
-              而家揀咗 {poolCount} 組，但得返 {count} 個人，最多只可以分{' '}
-              {Math.max(...pools)} 組。撳返上面其中一個。
+              而家揀咗 {poolCount} 組，但得返 {count} 個人，最多只可以分 {Math.max(...pools)}{' '}
+              組。撳返上面其中一個。
             </span>
           </p>
         ) : (
