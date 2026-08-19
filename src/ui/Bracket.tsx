@@ -286,7 +286,7 @@ function TieBreakers({
                 </div>
                 <span className="u-eyebrow">
                   {s.attempt === 0
-                    ? '勝場、得分、分差、極限次數四樣都一樣，要打加賽先分到'
+                    ? '勝場、極限次數、得分、分差四樣都一樣，要打加賽先分到'
                     : s.played
                       ? `第 ${s.attempt} 次加賽又分唔開`
                       : `第 ${s.attempt} 次加賽打緊`}

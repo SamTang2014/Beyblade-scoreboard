@@ -183,7 +183,7 @@ export function Table({ id }: { id: string }) {
         <p className="note">
           <span>·</span>
           <span>
-            排名次序：勝場 → 總得分 → 得失分差 → 極限勝出次數
+            排名次序：勝場 → 極限勝出次數 → 總得分 → 得失分差
             {tournament.headToHead ? ' → 佢哋之間邊個贏過邊個' : ''}。未打完嘅場次一分都唔計。
           </span>
         </p>

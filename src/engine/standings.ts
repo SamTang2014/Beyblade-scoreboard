@@ -5,9 +5,9 @@ import type { Match, Player, StandingRow } from './types'
  * 排名比較次序（同 spec 一致，唔好擅自改）：
  *
  *   1. 勝場數
- *   2. 總得分
- *   3. 得失分差
- *   4. 極限勝出次數
+ *   2. 極限勝出次數
+ *   3. 總得分
+ *   4. 得失分差
  *   5. 對賽成績 —— 淨係 `headToHead` 開咗先做，見下面 `miniLeague`
  *   6. 仲係一樣 → 並列，唔自動分先後
  *
@@ -108,9 +108,9 @@ export function computeStandings(
   rows.sort(
     (x, y) =>
       y.wins - x.wins ||
+      y.xtremeWins - x.xtremeWins ||
       y.pointsFor - x.pointsFor ||
       y.diff - x.diff ||
-      y.xtremeWins - x.xtremeWins ||
       x.name.localeCompare(y.name, 'zh-HK'),
   )
 

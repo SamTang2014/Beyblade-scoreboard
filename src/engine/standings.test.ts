@@ -86,7 +86,26 @@ describe('排名規則', () => {
     expect(rows[2]!.losses).toBe(2)
   })
 
-  it('第 2 條：同勝場就比總得分，對賽成績唔再蓋過佢', () => {
+  it('第 2 條：同勝場就比極限勝出次數，總得分高都冇用', () => {
+    // p1 同 p2 都係 1 勝 1 負。p2 總得分高（7 對 4），但 p1 有一次極限。
+    // 新規則極限行先：p1 排前。
+    const rows = computeStandings(players(4), [
+      rounds('p1', 'p3', ['a:xtreme', 'b:spin', 'a:spin']), // p1 4-1，一次極限
+      rounds('p4', 'p1', ['a:spin', 'a:spin', 'a:spin', 'a:spin']), // p1 0-4
+      rounds('p2', 'p4', ['a:spin', 'a:spin', 'a:spin', 'a:spin']), // p2 4-0，冇極限
+      rounds('p3', 'p2', ['b:spin', 'b:spin', 'a:spin', 'a:spin', 'b:spin', 'a:spin', 'a:spin']), // p2 3-4 輸
+    ])
+
+    const p1 = rows.find((r) => r.playerId === 'p1')!
+    const p2 = rows.find((r) => r.playerId === 'p2')!
+    expect(p1.wins).toBe(p2.wins)
+    expect(p2.pointsFor).toBeGreaterThan(p1.pointsFor)
+    expect(p1.xtremeWins).toBe(1)
+    expect(p2.xtremeWins).toBe(0)
+    expect(p1.rank).toBeLessThan(p2.rank)
+  })
+
+  it('第 3 條：同勝場同極限就比總得分，對賽成績唔再蓋過佢', () => {
     // p1 同 p2 都係 2 勝 1 負，p1 贏咗 p2，但 p2 總得分高過 p1。
     // 舊規則 p1 排前（贏過你）；新規則 p2 排前（打得靚啲）。
     const ms = [
@@ -122,7 +141,7 @@ describe('排名規則', () => {
     expect(rows.map((r) => r.pointsFor)).toEqual([6, 5, 4])
   })
 
-  it('第 3 條：同勝場、同總得分、又未打過對方，就比得失分差', () => {
+  it('第 4 條：同勝場、同極限、同總得分、又未打過對方，就比得失分差', () => {
     const rows = computeStandings(players(4), [
       played('p1', 'p3', 'p1', 0), // p1 4-0
       played('p1', 'p4', 'p1', 2), // p1 4-2 → pf 8, pa 2
@@ -137,7 +156,7 @@ describe('排名規則', () => {
     expect(order(rows).slice(0, 2)).toEqual(['p1', 'p2'])
   })
 
-  it('第 4 條：勝場、得分、分差都一樣，就比極限勝出次數', () => {
+  it('第 2 條（補）：連得分分差都一樣，一樣係極限分先後', () => {
     // p1 同 p2 都係贏一場 4-1、輸一場 1-4，但 p1 靠極限攞分。
     const rows = computeStandings(players(4), [
       rounds('p1', 'p3', ['a:xtreme', 'b:spin', 'a:spin']), // p1 4-1，一次極限

@@ -259,7 +259,7 @@ export function Setup({ id }: { id: string }) {
             <p className="note">
               <span>·</span>
               <span>
-                排名次序：勝場 → 得分 → 分差 → 極限勝出次數。四樣都一樣嘅時候，
+                排名次序：勝場 → 極限勝出次數 → 得分 → 分差。四樣都一樣嘅時候，
                 {tournament.headToHead
                   ? '再睇佢哋之間邊個贏過邊個；仲拆唔開先當並列。'
                   : '就當並列，出線位有並列就打加賽。'}
