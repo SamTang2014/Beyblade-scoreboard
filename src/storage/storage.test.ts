@@ -379,59 +379,23 @@ describe('小組賽欄位', () => {
   })
 })
 
-describe('同分點拆嘅選項', () => {
-  it('新賽事 default 係閂', () => {
-    expect(store().create('測試').headToHead).toBe(false)
-  })
-
-  it('舊檔冇呢個 field 就當閂', () => {
-    const t = parseTournament({
-      id: 't1',
-      name: '舊賽事',
-      createdAt: 0,
-      updatedAt: 0,
-      mode: 'roundRobin',
-      players: [],
-      matches: [],
-    })
-    expect(t.headToHead).toBe(false)
-  })
-
-  it('唔係 true 嘅垃圾值一律當閂', () => {
-    const base = {
-      id: 't1',
-      name: '賽事',
-      createdAt: 0,
-      updatedAt: 0,
-      mode: 'roundRobin',
-      players: [],
-      matches: [],
-    }
-    expect(parseTournament({ ...base, headToHead: 'yes' }).headToHead).toBe(false)
-    expect(parseTournament({ ...base, headToHead: 1 }).headToHead).toBe(false)
-    expect(parseTournament({ ...base, headToHead: null }).headToHead).toBe(false)
-    expect(parseTournament({ ...base, headToHead: true }).headToHead).toBe(true)
-  })
-
-  it('匯出再匯入，個值保持住', () => {
-    const s = store()
-    const made = s.create('測試')
-    s.save({ ...made, headToHead: true })
-    const back = parseExportFile(s.exportJson(made.id)).tournaments[0]!
-    expect(back.headToHead).toBe(true)
-  })
-})
-
-
-describe('剝走直播之後嘅相容性', () => {
+describe('剝走舊 field 之後嘅相容性', () => {
   it('舊備份入面有 live 都讀得返，個 field 靜靜雞唔見咗', () => {
     const t = parseTournament({
       id: 'old', name: '舊賽事', createdAt: 0, updatedAt: 0,
-      mode: 'roundRobin', headToHead: true, players: [], matches: [],
+      mode: 'roundRobin', players: [], matches: [],
       live: { scriptId: 'S1', edit: 'edit-a', view: 'view-b' },
     })
     expect(t.name).toBe('舊賽事')
-    expect(t.headToHead).toBe(true)
     expect('live' in t).toBe(false)
+  })
+
+  it('舊備份入面有 headToHead 都讀得返 —— 對戰而家永遠開，個 field 靜靜雞唔見咗', () => {
+    const t = parseTournament({
+      id: 'old', name: '舊賽事', createdAt: 0, updatedAt: 0,
+      mode: 'roundRobin', headToHead: true, players: [], matches: [],
+    })
+    expect(t.name).toBe('舊賽事')
+    expect('headToHead' in t).toBe(false)
   })
 })

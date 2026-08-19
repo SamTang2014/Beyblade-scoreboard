@@ -139,7 +139,6 @@ export function createStore({ kv, now = Date.now, newId = defaultNewId }: StoreO
         cutSize: null,
         poolCount: null,
         advancePerPool: null,
-        headToHead: false,
         players: [],
         matches: [],
       }
@@ -304,8 +303,7 @@ export function parseTournament(v: unknown): Tournament {
     cutSize: typeof v.cutSize === 'number' && Number.isFinite(v.cutSize) ? v.cutSize : null,
     poolCount,
     advancePerPool,
-    // 舊檔冇呢個 field，一律當閂。唔係 true 嘅垃圾值都當閂。
-    headToHead: v.headToHead === true,
+    // 舊檔可能有 headToHead field —— 對賽而家永遠開，直接唔理佢。
     players: grouped,
     matches,
   }

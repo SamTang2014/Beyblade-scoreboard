@@ -1,7 +1,7 @@
 import type { StandingRow } from '../../engine/types'
 
 /**
- * 排名表。四條主規則（勝場、極限次數、得分、分差）全部睇得出嚟，
+ * 排名表。條鏈用到嘅數字（勝場、分差、極限次數、得分）全部睇得出嚟，
  * 失分擺埋落去等人查得到。
  *
  * `cutAfter` = 第幾名之後劃條出線線（小組賽用）。
@@ -23,7 +23,7 @@ export function Standings({
     <div className="tablewrap">
       <table className="stand">
         <caption className="sr-only">
-          排名。先比勝場，再比極限勝出次數，跟住總得分，最後得失分差。
+          排名。先比勝場，再比得失分差，跟住對戰、極限勝出次數，最後總得分。
         </caption>
         <thead>
           <tr>

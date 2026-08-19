@@ -43,7 +43,7 @@ export function Board({
   const order = inPlayOrder(tournament.matches)
   const current = order.find((m) => matchWinnerId(m) === null) ?? null
   const ties = standingsTies(tournament)
-  const rawRows = computeStandings(tournament.players, tournament.matches, tournament.headToHead)
+  const rawRows = computeStandings(tournament.players, tournament.matches)
   // 單循環張表就係最終結果，打完加賽要重排、解開並列。詳情見 Table.tsx。
   const rows = tournament.mode === 'roundRobin' ? applyRankTiebreaks(rawRows, ties) : rawRows
   const complete = isTournamentComplete(tournament.matches)
@@ -51,12 +51,7 @@ export function Board({
     pid === null ? '等緊上場' : (tournament.players.find((p) => p.id === pid)?.name ?? '？')
   const pools =
     tournament.mode === 'poolsThenKnockout' && tournament.poolCount !== null
-      ? poolStandings(
-          tournament.players,
-          tournament.matches,
-          tournament.poolCount,
-          tournament.headToHead,
-        )
+      ? poolStandings(tournament.players, tournament.matches, tournament.poolCount)
       : null
   const champText = complete ? championLine(tournament, rows) : ''
 

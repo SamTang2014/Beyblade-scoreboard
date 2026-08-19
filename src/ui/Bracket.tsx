@@ -254,14 +254,9 @@ function TieBreakers({
   ties: TieState[]
   onDraw: () => void
 }) {
-  const tables = poolStandings(
-    tournament.players,
-    tournament.matches,
-    tournament.poolCount ?? 0,
-    tournament.headToHead,
-  )
+  const tables = poolStandings(tournament.players, tournament.matches, tournament.poolCount ?? 0)
   // 大循環冇分組，並列嗰班人要由總排名表度搵。
-  const overall = computeStandings(tournament.players, tournament.matches, tournament.headToHead)
+  const overall = computeStandings(tournament.players, tournament.matches)
   const rowsFor = (s: TieState) =>
     s.kind === 'pool' ? (tables.find((t) => t.pool === s.key)?.rows ?? []) : overall
 
@@ -286,7 +281,7 @@ function TieBreakers({
                 </div>
                 <span className="u-eyebrow">
                   {s.attempt === 0
-                    ? '勝場、極限次數、得分、分差四樣都一樣，要打加賽先分到'
+                    ? '勝場、分差、對戰、極限、得分全部都一樣，要打加賽先分到'
                     : s.played
                       ? `第 ${s.attempt} 次加賽又分唔開`
                       : `第 ${s.attempt} 次加賽打緊`}

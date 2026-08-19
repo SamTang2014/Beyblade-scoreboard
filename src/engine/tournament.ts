@@ -134,18 +134,18 @@ function cutSeeds(t: Tournament): string[] {
     if (t.poolCount === null || t.advancePerPool === null) return []
     // 有組拆唔掂就唔准砌 —— 唔擋嘅話會靜靜雞照排序攞頭幾個，
     // 而排序最後 fallback 係個名，即係「邊個出線」變成睇個名點串。
-    if (tiesPending(t.players, t.matches, t.poolCount, t.advancePerPool, t.headToHead)) return []
-    return poolSeedOrder(t.players, t.matches, t.poolCount, t.advancePerPool, t.headToHead)
+    if (tiesPending(t.players, t.matches, t.poolCount, t.advancePerPool)) return []
+    return poolSeedOrder(t.players, t.matches, t.poolCount, t.advancePerPool)
   }
 
   if (t.cutSize === null) return []
 
   // 大循環一樣要擋。呢度本來乜 check 都冇 —— 第 4、5 名並列而頭 4 名入籤表，
   // 就靜靜雞按個名攞頭 4 個。
-  const ties = rankTieStates(t.players, t.matches, t.headToHead, t.cutSize)
+  const ties = rankTieStates(t.players, t.matches, t.cutSize)
   if (ties.some((s) => !s.resolved)) return []
 
-  const rows = computeStandings(t.players, groupMatches(t.matches), t.headToHead)
+  const rows = computeStandings(t.players, groupMatches(t.matches))
   return applyRankTiebreaks(rows, ties)
     .slice(0, t.cutSize)
     .map((r) => r.playerId)
@@ -180,14 +180,12 @@ export function standingsTies(t: Tournament): TieState[] {
     case 'knockout':
       return []
     case 'roundRobin':
-      return rankTieStates(t.players, t.matches, t.headToHead, null)
+      return rankTieStates(t.players, t.matches, null)
     case 'groupThenKnockout':
-      return t.cutSize === null
-        ? []
-        : rankTieStates(t.players, t.matches, t.headToHead, t.cutSize)
+      return t.cutSize === null ? [] : rankTieStates(t.players, t.matches, t.cutSize)
     case 'poolsThenKnockout':
       if (t.poolCount === null || t.advancePerPool === null) return []
-      return tieStates(t.players, t.matches, t.poolCount, t.advancePerPool, t.headToHead)
+      return tieStates(t.players, t.matches, t.poolCount, t.advancePerPool)
   }
 }
 

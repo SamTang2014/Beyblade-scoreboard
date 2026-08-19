@@ -14,7 +14,7 @@ export function Table({ id }: { id: string }) {
   if (tournament === null) return <NotFound />
 
   const ties = standingsTies(tournament)
-  const rawRows = computeStandings(tournament.players, tournament.matches, tournament.headToHead)
+  const rawRows = computeStandings(tournament.players, tournament.matches)
   /*
     單循環張表本身就係最終結果，所以打完加賽要重排、解開並列 ——
     唔重排嘅話你打完加賽返嚟睇，兩個人仲係並列第 1，等於冇打過。
@@ -42,12 +42,7 @@ export function Table({ id }: { id: string }) {
 
   const pools =
     tournament.mode === 'poolsThenKnockout' && tournament.poolCount !== null
-      ? poolStandings(
-          tournament.players,
-          tournament.matches,
-          tournament.poolCount,
-          tournament.headToHead,
-        )
+      ? poolStandings(tournament.players, tournament.matches, tournament.poolCount)
       : null
 
   return (
@@ -183,8 +178,8 @@ export function Table({ id }: { id: string }) {
         <p className="note">
           <span>·</span>
           <span>
-            排名次序：勝場 → 極限勝出次數 → 總得分 → 得失分差
-            {tournament.headToHead ? ' → 佢哋之間邊個贏過邊個' : ''}。未打完嘅場次一分都唔計。
+            排名次序：勝場 → 得失分差 → 對戰（並列嗰班人之間邊個贏得多）→
+            極限勝出次數 → 總得分。未打完嘅場次一分都唔計。
           </span>
         </p>
         {pools !== null && (

@@ -42,7 +42,6 @@ function tournament(
     cutSize,
     poolCount,
     advancePerPool,
-    headToHead: false,
     players: players(n),
     matches: [],
   }
@@ -357,8 +356,9 @@ function playGroupStage(
 describe('三個模式都搵到並列', () => {
   /**
    * p1 贏 p2、p1 贏 p3、p4 贏 p1、p2 贏 p3、p2 贏 p4、p3 贏 p4。
-   * → p1／p2 都係 2 勝 1 負、8 分、失 4 分；p3／p4 都係 1 勝 2 負、4 分、失 8 分。
-   *   即係兩段並列：第 1 位兩個、第 3 位兩個。
+   * → p1／p2 都係 2 勝 1 負、分差 +4；p3／p4 都係 1 勝 2 負、分差 −4。
+   *   勝場分差孖住，但單循環人人打過人人 —— 對戰（p1 贏過 p2、p3 贏過 p4）
+   *   直接拆到，唔使加賽。
    */
   const TWO_TIES: Record<string, string> = {
     p1__p2: 'p1',
@@ -381,12 +381,8 @@ describe('三個模式都搵到並列', () => {
     expect(standingsTies(tournament('groupThenKnockout', 4, null))).toEqual([])
   })
 
-  it('單循環：兩段並列都搵到，冇出線線', () => {
-    const states = standingsTies(playGroupStage('roundRobin', null, TWO_TIES))
-    expect(states.map((s) => s.key)).toEqual([1, 3])
-    expect(states.every((s) => s.kind === 'rank')).toBe(true)
-    expect(states.every((s) => s.slots === null)).toBe(true)
-    expect(states.every((s) => !s.resolved)).toBe(true)
+  it('單循環：孖住並列但打過對方 —— 對戰直接拆咗，唔使加賽', () => {
+    expect(standingsTies(playGroupStage('roundRobin', null, TWO_TIES))).toEqual([])
   })
 
   /**
@@ -427,14 +423,16 @@ describe('三個模式都搵到並列', () => {
   })
 
   it('單循環：排到加賽 → 打完就拆掂 → 唔會再排', () => {
-    const t = playGroupStage('roundRobin', null, TWO_TIES)
+    // 三個人打成回圈，對戰一人一勝拆唔開 —— 呢種先真係要加賽。
+    const t = playGroupStage('roundRobin', null, THREE_WAY)
     const before = t.matches.length
 
     const withTb = { ...t, matches: addTiebreak(t) }
-    expect(withTb.matches).toHaveLength(before + 2) // 兩段各兩個人 = 各 1 場
+    expect(withTb.matches).toHaveLength(before + 3) // 三個人 = 3 場
     expect(standingsTies(withTb).every((s) => !s.resolved)).toBe(true)
 
-    const done = playTiebreaks(withTb, { tb1r1m1: 'p1', tb3r1m1: 'p3' })
+    // p2 兩勝、p3 一勝、p4 零勝 —— 加賽排到晒先後。
+    const done = playTiebreaks(withTb, { tb2r1m1: 'p2', tb2r1m2: 'p2', tb2r1m3: 'p3' })
     expect(standingsTies(done).every((s) => s.resolved)).toBe(true)
     expect(addTiebreak(done)).toEqual(done.matches) // 冇嘢要再排
   })

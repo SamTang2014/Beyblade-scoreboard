@@ -167,18 +167,13 @@ export interface PoolTable {
  * 同一套 tiebreak（`computeStandings` 唔使改），淨係餵入去嘅選手同場次
  * 換成嗰組嘅 —— 所以 B 組打完一場唔會郁到 A 組嘅名次。
  */
-export function poolStandings(
-  players: Player[],
-  matches: Match[],
-  poolCount: number,
-  headToHead = false,
-): PoolTable[] {
+export function poolStandings(players: Player[], matches: Match[], poolCount: number): PoolTable[] {
   const group = groupMatches(matches)
   return poolsOf(players, poolCount).map((pool, i) => {
     const ids = new Set(pool.map((p) => p.id))
     // 兩邊一定同組，所以查一邊就夠。
     const mine = group.filter((m) => m.aId !== null && ids.has(m.aId))
-    return { pool: i + 1, players: pool, rows: computeStandings(pool, mine, headToHead) }
+    return { pool: i + 1, players: pool, rows: computeStandings(pool, mine) }
   })
 }
 
@@ -195,14 +190,13 @@ export function poolSeedOrder(
   matches: Match[],
   poolCount: number,
   advancePerPool: number,
-  headToHead = false,
 ): string[] {
-  const tables = poolStandings(players, matches, poolCount, headToHead).map((t) => ({
+  const tables = poolStandings(players, matches, poolCount).map((t) => ({
     ...t,
     rows: applyTiebreaks(t, matches, advancePerPool),
   }))
   const globalRank = new Map(
-    computeStandings(players, groupMatches(matches), headToHead).map((r, i) => [r.playerId, i]),
+    computeStandings(players, groupMatches(matches)).map((r, i) => [r.playerId, i]),
   )
 
   const seeds: string[] = []
@@ -514,10 +508,9 @@ export function tieStates(
   matches: Match[],
   poolCount: number,
   advancePerPool: number,
-  headToHead = false,
 ): TieState[] {
   const out: TieState[] = []
-  for (const table of poolStandings(players, matches, poolCount, headToHead)) {
+  for (const table of poolStandings(players, matches, poolCount)) {
     const tie = tiedAtCut(table.rows, advancePerPool)
     if (tie === null) continue
     out.push(tieStateFor(table.pool, 'pool', tie.ids, tie.slots, matches))
@@ -539,13 +532,12 @@ export function tieStates(
 export function rankTieStates(
   players: Player[],
   matches: Match[],
-  headToHead: boolean,
   cut: number | null,
 ): TieState[] {
   const group = groupMatches(matches)
   if (!isTournamentComplete(group)) return []
 
-  const rows = computeStandings(players, group, headToHead)
+  const rows = computeStandings(players, group)
 
   if (cut !== null) {
     const tie = tiedAtCut(rows, cut)
@@ -621,9 +613,8 @@ export function tiesPending(
   matches: Match[],
   poolCount: number,
   advancePerPool: number,
-  headToHead = false,
 ): boolean {
-  return tieStates(players, matches, poolCount, advancePerPool, headToHead).some((s) => !s.resolved)
+  return tieStates(players, matches, poolCount, advancePerPool).some((s) => !s.resolved)
 }
 
 /**
@@ -650,9 +641,8 @@ export function nextTiebreak(
   matches: Match[],
   poolCount: number,
   advancePerPool: number,
-  headToHead = false,
 ): Match[] {
-  return nextTiebreakFor(tieStates(players, matches, poolCount, advancePerPool, headToHead))
+  return nextTiebreakFor(tieStates(players, matches, poolCount, advancePerPool))
 }
 
 /** 用加賽結果重排小組排名表入面並列嗰一段。冇加賽或者拆唔掂就原封不動。 */
